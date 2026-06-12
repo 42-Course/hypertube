@@ -1,6 +1,8 @@
 .PHONY: help build up down restart bash console migrate rollback routes \
         test coverage logs seed generate db-reset db-create db-drop \
-        setup-front front-install lint-api
+        setup-front front-install lint-api \
+        prod-bundle prod-login prod-build prod-push \
+        kamal-setup kamal-deploy kamal-rollback kamal-redeploy
 
 COMPOSE      = docker compose
 BACKEND_SVC  = backend
@@ -8,6 +10,17 @@ DC_RUN       = $(COMPOSE) run --rm $(BACKEND_SVC)
 DC_EXEC      = $(COMPOSE) run $(BACKEND_SVC)
 BUNDLE_EXEC  = $(DC_EXEC) bundle exec
 RAILS        = $(DC_EXEC) $(BUNDLE_EXEC) rails
+
+# ── Production ────────────────────────────────────────────────────────────────
+GHCR_USER   = 42-course
+PROD_IMAGE  = ghcr.io/$(GHCR_USER)/hypertube-api
+GIT_SHA     = $(shell git rev-parse HEAD)
+
+# Kamal runs inside the dev container (no local Ruby needed).
+# Build/push use Podman directly; deploy uses --skip-push so no local daemon.
+KAMAL = $(COMPOSE) run --no-deps --rm \
+          -v $(HOME)/.ssh:/root/.ssh:ro \
+          $(BACKEND_SVC) bundle exec kamal
 RSPEC        = $(DC_EXEC) $(BUNDLE_EXEC) rspec
 
 # ─── Help ────────────────────────────────────────────────────────────────────
@@ -38,6 +51,14 @@ help:
 	@printf "    make coverage       Run RSpec with SimpleCov HTML report\n"
 	@printf "\n  \033[36mFrontend\033[0m\n"
 	@printf "    make setup-front    Install frontend dependencies (bun)\n"
+	@printf "\n  \033[36mProduction (Kamal → fractalia.art)\033[0m\n"
+	@printf "    make prod-bundle    Install kamal/thruster gems in dev container\n"
+	@printf "    make prod-build     Build production image with Podman\n"
+	@printf "    make prod-push      Build + push to ghcr.io\n"
+	@printf "    make kamal-setup    First-time server setup (run once)\n"
+	@printf "    make kamal-deploy   Full deploy (build + push + rolling deploy)\n"
+	@printf "    make kamal-redeploy Redeploy without rebuilding\n"
+	@printf "    make kamal-rollback Roll back to previous release\n"
 	@printf "\n"
 
 build:
@@ -102,3 +123,44 @@ coverage:
 # ─── Frontend ────────────────────────────────────────────────────────────────
 setup-front:
 	cd web && bun install
+
+# ─── Production / Kamal ──────────────────────────────────────────────────────
+# Install kamal + thruster gems into the dev container's bundle cache.
+# Run this once after adding them to the Gemfile.
+prod-bundle:
+	$(DC_RUN) bundle install
+
+# Login to ghcr.io using the token stored in api/.kamal/secrets.
+prod-login:
+	@sed -n 's/^KAMAL_REGISTRY_PASSWORD=//p' api/.kamal/secrets | \
+	  docker login ghcr.io -u $(GHCR_USER) --password-stdin
+
+# Build the production image with Podman and tag it with the current git SHA.
+prod-build:
+	docker build -f api/Dockerfile.production \
+	  -t $(PROD_IMAGE):$(GIT_SHA) \
+	  -t $(PROD_IMAGE):latest \
+	  api/
+
+# Login, build, and push to ghcr.io.
+prod-push: prod-login prod-build
+	docker push $(PROD_IMAGE):$(GIT_SHA)
+	docker push $(PROD_IMAGE):latest
+
+# First-time server provisioning: installs Docker, starts proxy + accessories,
+# then deploys the app (image must already be in the registry via prod-push).
+kamal-setup: prod-push prod-bundle
+	ssh-keyscan -H 167.71.57.19 >> $(HOME)/.ssh/known_hosts 2>/dev/null || true
+	$(KAMAL) setup --skip-push
+
+# Full deploy: rebuild image, push, then rolling-redeploy on the server.
+kamal-deploy: prod-push prod-bundle
+	$(KAMAL) deploy --skip-push
+
+# Redeploy whatever is already in the registry (no rebuild).
+kamal-redeploy:
+	$(KAMAL) redeploy
+
+# Roll back to the previous release.
+kamal-rollback:
+	$(KAMAL) rollback
