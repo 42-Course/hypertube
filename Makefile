@@ -5,7 +5,7 @@
 COMPOSE      = docker compose
 BACKEND_SVC  = backend
 DC_RUN       = $(COMPOSE) run --rm $(BACKEND_SVC)
-DC_EXEC      = $(COMPOSE) exec $(BACKEND_SVC)
+DC_EXEC      = $(COMPOSE) run $(BACKEND_SVC)
 RAILS        = $(DC_EXEC) bundle exec rails
 RSPEC        = $(DC_EXEC) bundle exec rspec
 

@@ -4,7 +4,12 @@ services:
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - ./api/.env.local
     environment:
+      # Postgres reads POSTGRES_* vars on first init.
+      # Map them from the DATABASE_* vars in .env.local so both services
+      # always use the same credentials.
       POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-password}
       POSTGRES_DB: ${DATABASE_NAME:-hypertube_development}
