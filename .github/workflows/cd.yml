@@ -32,6 +32,6 @@ jobs:
             -t ghcr.io/42-course/hypertube-api:latest \
             -t ghcr.io/42-course/hypertube-api:${{ github.sha }} \
             api/ \
-            -f api/Dockerfile.production
+            -f api/Dockerfile
           docker push ghcr.io/42-course/hypertube-api:latest
           docker push ghcr.io/42-course/hypertube-api:${{ github.sha }}
