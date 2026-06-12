@@ -93,10 +93,10 @@ docs:
 	$(RAILS) rswag:specs:swaggerize
 
 test:
-	$(RSPEC)
+	$(COMPOSE) run -e RAILS_ENV=test $(BACKEND_SVC) bundle exec rspec
 
 coverage:
-	$(DC_EXEC) bash -c "COVERAGE=true bundle exec rspec --format documentation"
+	$(COMPOSE) run -e RAILS_ENV=test $(BACKEND_SVC) bash -c "COVERAGE=true bundle exec rspec --format documentation"
 	@echo "\033[1mCoverage report generated at api/coverage/index.html\033[0m"
 
 # ─── Frontend ────────────────────────────────────────────────────────────────
