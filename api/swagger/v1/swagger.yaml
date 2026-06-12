@@ -17,3 +17,182 @@ security:
 servers:
 - url: http://localhost:3000
   description: Development
+paths:
+  "/api/v1/comments":
+    get:
+      summary: List latest comments
+      tags:
+      - Comments
+      security:
+      - oauth2: []
+      responses:
+        '200':
+          description: returns comments
+  "/api/v1/movies/{movie_id}/comments":
+    parameters:
+    - name: movie_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    post:
+      summary: Post a comment on a movie
+      tags:
+      - Comments
+      security:
+      - oauth2: []
+      parameters: []
+      responses:
+        '201':
+          description: comment created
+        '422':
+          description: invalid content
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - comment
+              properties:
+                comment:
+                  type: object
+                  required:
+                  - content
+                  properties:
+                    content:
+                      type: string
+                      example: Great movie!
+  "/api/v1/comments/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    get:
+      summary: Get a comment
+      tags:
+      - Comments
+      security:
+      - oauth2: []
+      responses:
+        '200':
+          description: returns comment
+    patch:
+      summary: Update a comment
+      tags:
+      - Comments
+      security:
+      - oauth2: []
+      parameters: []
+      responses:
+        '200':
+          description: comment updated
+        '403':
+          description: cannot edit another user's comment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: object
+                  properties:
+                    content:
+                      type: string
+    delete:
+      summary: Delete a comment
+      tags:
+      - Comments
+      security:
+      - oauth2: []
+      responses:
+        '204':
+          description: comment deleted
+        '403':
+          description: cannot delete another user's comment
+  "/api/v1/movies":
+    get:
+      summary: List top movies (public)
+      tags:
+      - Movies
+      responses:
+        '200':
+          description: returns movie list
+  "/api/v1/movies/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    get:
+      summary: Get movie details
+      tags:
+      - Movies
+      security:
+      - oauth2: []
+      responses:
+        '200':
+          description: returns movie details
+        '401':
+          description: unauthorized
+  "/api/v1/users":
+    get:
+      summary: List users
+      tags:
+      - Users
+      security:
+      - oauth2: []
+      responses:
+        '200':
+          description: returns list of users
+        '401':
+          description: unauthorized
+  "/api/v1/users/{id}":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    get:
+      summary: Get a user
+      tags:
+      - Users
+      security:
+      - oauth2: []
+      responses:
+        '200':
+          description: returns user profile
+        '404':
+          description: user not found
+    patch:
+      summary: Update a user
+      tags:
+      - Users
+      security:
+      - oauth2: []
+      parameters: []
+      responses:
+        '200':
+          description: user updated
+        '403':
+          description: forbidden — cannot update another user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  type: object
+                  properties:
+                    username:
+                      type: string
+                    email:
+                      type: string
+                    profile_picture_url:
+                      type: string

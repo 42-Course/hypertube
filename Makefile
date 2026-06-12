@@ -1,4 +1,4 @@
-.PHONY: help init build up down restart bash console migrate rollback routes \
+.PHONY: help build up down restart bash console migrate rollback routes \
         test coverage logs seed generate db-reset db-create db-drop \
         setup-front front-install lint-api
 
@@ -14,7 +14,6 @@ RSPEC        = $(DC_EXEC) $(BUNDLE_EXEC) rspec
 help:
 	@printf "\n\033[1mHypertube – Available Make Targets\033[0m\n\n"
 	@printf "  \033[36mSetup\033[0m\n"
-	@printf "    make init           First-time project bootstrap (build + rails new + gems)\n"
 	@printf "    make build          Rebuild Docker images\n"
 	@printf "\n  \033[36mServices\033[0m\n"
 	@printf "    make up             Start all services (background)\n"
@@ -40,14 +39,6 @@ help:
 	@printf "\n  \033[36mFrontend\033[0m\n"
 	@printf "    make setup-front    Install frontend dependencies (bun)\n"
 	@printf "\n"
-
-# ─── Setup ───────────────────────────────────────────────────────────────────
-init:
-	@echo "\033[1m==> Building Docker image...\033[0m"
-	$(COMPOSE) build
-	@echo "\033[1m==> Running bootstrap script...\033[0m"
-	$(DC_RUN) bash /app/init.sh
-	@echo "\033[1m==> Done! Run 'make up' to start all services.\033[0m"
 
 build:
 	$(COMPOSE) build
