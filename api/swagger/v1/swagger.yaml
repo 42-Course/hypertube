@@ -1,0 +1,19 @@
+---
+openapi: 3.0.1
+info:
+  title: Hypertube API
+  version: v1
+  description: RESTful API with OAuth2 authentication for the Hypertube video platform
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: "/oauth/token"
+          scopes: {}
+security:
+- oauth2: []
+servers:
+- url: http://localhost:3000
+  description: Development

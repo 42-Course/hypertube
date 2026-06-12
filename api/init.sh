@@ -41,117 +41,15 @@ else
   echo "  Rails app already present – skipping rails new."
 fi
 
-
-
-# # ─── 5. Run Rails generators ─────────────────────────────────────────────────
-# step "Running Rails generators"
-
-# run_generator() {
-#   if bundle exec rails generate "$@" 2>&1 | grep -q "conflict\|already exists\|identical"; then
-#     echo "  (skipped – $1 already generated)"
-#   else
-#     echo "  Generated: $1"
-#   fi
-# }
-
-# bundle exec rails generate rspec:install   2>/dev/null && echo "  rspec:install done"     || echo "  rspec already set up"
-# bundle exec rails generate rswag:install   2>/dev/null && echo "  rswag:install done"     || echo "  rswag already set up"
-# bundle exec rails generate devise:install  2>/dev/null && echo "  devise:install done"    || echo "  devise already set up"
-# bundle exec rails generate doorkeeper:install 2>/dev/null && echo "  doorkeeper:install done" || echo "  doorkeeper already set up"
-
-# # Configure Doorkeeper for API-only password-grant flow.
-# # The generated file has a placeholder that raises — overwrite it.
-# cat > config/initializers/doorkeeper.rb << 'DOORKEEPER_CONFIG'
-# Doorkeeper.configure do
-#   orm :active_record
-
-#   # Called when a resource owner hits the OAuth authorization endpoint
-#   # (authorization-code flow). For our API-only app this is rarely triggered,
-#   # but Doorkeeper requires the block to be defined.
-#   resource_owner_authenticator do
-#     User.find_by(id: doorkeeper_token&.resource_owner_id)
-#   end
-
-#   # Called for POST /oauth/token with grant_type=password.
-#   # This is the primary auth method — the React frontend exchanges
-#   # username + password for an access token here.
-#   resource_owner_from_credentials do |_routes|
-#     user = User.find_for_database_authentication(email: params[:username]) ||
-#            User.find_by(username: params[:username])
-#     user if user&.valid_password?(params[:password])
-#   end
-
-#   # Only expose grant types we actually use
-#   grant_flows %w[password client_credentials]
-
-#   # No OAuth consent screen needed for a first-party API
-#   skip_authorization { true }
-
-#   # Tokens expire after 2 hours
-#   access_token_expires_in 2.hours
-
-#   # Uncomment to also issue refresh tokens:
-#   # use_refresh_token
-# end
-# DOORKEEPER_CONFIG
-# echo "  doorkeeper.rb configured for password grant flow."
-
-# Prepend SimpleCov to spec/spec_helper.rb
-if [ -f "spec/spec_helper.rb" ] && ! grep -q "SimpleCov" spec/spec_helper.rb; then
-  TMPFILE=$(mktemp)
-  cat > "$TMPFILE" << 'SIMPLECOV_HEADER'
-require "simplecov"
-require "simplecov-lcov"
-
-if ENV["COVERAGE"]
-  SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter.new([
-    SimpleCov::Formatter::HTMLFormatter,
-    SimpleCov::Formatter::LcovFormatter,
-  ])
-end
-
-SimpleCov.start "rails" do
-  enable_coverage :branch
-  add_filter "/spec/"
-  add_filter "/config/"
-  add_group "Controllers", "app/controllers"
-  add_group "Models",      "app/models"
-  add_group "Services",    "app/services"
-end
-
-SIMPLECOV_HEADER
-  cat spec/spec_helper.rb >> "$TMPFILE"
-  mv "$TMPFILE" spec/spec_helper.rb
-  echo "  SimpleCov prepended to spec/spec_helper.rb"
-fi
-
-# Configure shoulda-matchers + factory_bot in rails_helper
-if [ -f "spec/rails_helper.rb" ] && ! grep -q "Shoulda::Matchers" spec/rails_helper.rb; then
-  cat >> spec/rails_helper.rb << 'RAILS_HELPER_ADDONS'
-
-Shoulda::Matchers.configure do |config|
-  config.integrate do |with|
-    with.test_framework :rspec
-    with.library :rails
-  end
-end
-
-RSpec.configure do |config|
-  config.include FactoryBot::Syntax::Methods
-end
-RAILS_HELPER_ADDONS
-  echo "  shoulda-matchers + factory_bot configured in rails_helper.rb"
-fi
-
 # Patch swagger_helper.rb for our API structure
 if [ -f "spec/swagger_helper.rb" ]; then
   cat > spec/swagger_helper.rb << 'SWAGGER_HELPER'
 require "rails_helper"
 
 RSpec.configure do |config|
-  config.swagger_root = Rails.root.join("swagger").to_s
+  config.openapi_root = Rails.root.join("swagger").to_s
 
-  config.swagger_docs = {
+  config.openapi_specs = {
     "v1/swagger.yaml" => {
       openapi: "3.0.1",
       info: {
@@ -179,7 +77,7 @@ RSpec.configure do |config|
     }
   }
 
-  config.swagger_format = :yaml
+  config.openapi_format = :yaml
 end
 SWAGGER_HELPER
   echo "  swagger_helper.rb configured."

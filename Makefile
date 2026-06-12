@@ -6,8 +6,9 @@ COMPOSE      = docker compose
 BACKEND_SVC  = backend
 DC_RUN       = $(COMPOSE) run --rm $(BACKEND_SVC)
 DC_EXEC      = $(COMPOSE) run $(BACKEND_SVC)
-RAILS        = $(DC_EXEC) bundle exec rails
-RSPEC        = $(DC_EXEC) bundle exec rspec
+BUNDLE_EXEC  = $(DC_EXEC) bundle exec
+RAILS        = $(DC_EXEC) $(BUNDLE_EXEC) rails
+RSPEC        = $(DC_EXEC) $(BUNDLE_EXEC) rspec
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 help:
@@ -33,6 +34,7 @@ help:
 	@printf "    make db-drop        Drop the database\n"
 	@printf "    make db-reset       Drop + create + migrate + seed\n"
 	@printf "\n  \033[36mTesting\033[0m\n"
+	@printf "    make docs           Run Swagger and generate docs\n"
 	@printf "    make test           Run RSpec test suite\n"
 	@printf "    make coverage       Run RSpec with SimpleCov HTML report\n"
 	@printf "\n  \033[36mFrontend\033[0m\n"
@@ -96,6 +98,9 @@ db-reset:
 	$(RAILS) db:drop db:create db:migrate db:seed
 
 # ─── Testing ─────────────────────────────────────────────────────────────────
+docs:
+	$(RAILS) rswag:specs:swaggerize
+
 test:
 	$(RSPEC)
 

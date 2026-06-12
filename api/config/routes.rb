@@ -13,15 +13,15 @@ Rails.application.routes.draw do
   mount Rswag::Ui::Engine => "/api-docs"
   mount Rswag::Api::Engine => "/api-docs"
 
-  # namespace :api do
-  #   namespace :v1 do
-  #     resources :users, only: %i[index show update]
+  namespace :api do
+    namespace :v1 do
+      resources :users, only: %i[index show update]
 
-  #     resources :movies, only: %i[index show] do
-  #       resources :comments, only: %i[create]
-  #     end
+      resources :movies, only: %i[index show] do
+        resources :comments, only: %i[create]
+      end
 
-  #     resources :comments, only: %i[index show update destroy]
-  #   end
-  # end
+      resources :comments, only: %i[index show update destroy]
+    end
+  end
 end
