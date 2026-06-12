@@ -21,13 +21,13 @@ builder:
 
 env:
   clear:
-    DATABASE_HOST: 127.0.0.1
+    DATABASE_HOST: hypertube-api-db
     DATABASE_PORT: "5432"
     DATABASE_NAME: hypertube_production
     DATABASE_USERNAME: hypertube
     RAILS_MAX_THREADS: "5"
     RAILS_LOG_TO_STDOUT: "true"
-    REDIS_URL: redis://127.0.0.1:6379/0
+    REDIS_URL: redis://hypertube-api-redis:6379/0
     FRONTEND_URL: https://fractalia.art
     API_URL: https://fractalia.art
     SMTP_HOST: smtp.gmail.com

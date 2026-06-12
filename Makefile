@@ -137,7 +137,7 @@ prod-login:
 	  docker login ghcr.io -u $(GHCR_USER) --password-stdin
 
 prod-build:
-	docker build -f api/Dockerfile.production \
+	docker build -f api/Dockerfile \
 	  -t $(PROD_IMAGE):$(GIT_SHA) \
 	  -t $(PROD_IMAGE):latest \
 	  api/

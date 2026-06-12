@@ -149,7 +149,7 @@ hypertube/
 │   ├── spec/                   # RSpec + rswag request specs
 │   ├── swagger/v1/swagger.yaml # Generated OpenAPI spec
 │   ├── Dockerfile.dev
-│   └── Dockerfile.production
+│   └── Dockerfile
 ├── web/                        # React + Vite frontend
 │   └── src/
 │       ├── api/                # Axios client
