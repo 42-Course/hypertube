@@ -15,7 +15,6 @@ api/tmp/
 api/storage/
 api/public/uploads/
 api/coverage/
-api/Gemfile.lock
 
 # ─── Node / Bun ──────────────────────────────────────────────────────────────
 web/node_modules/
