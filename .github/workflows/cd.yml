@@ -1,0 +1,37 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build_and_push:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build --no-cache \
+            -t ghcr.io/42-course/hypertube-api:latest \
+            -t ghcr.io/42-course/hypertube-api:${{ github.sha }} \
+            api/ \
+            -f api/Dockerfile.production
+          docker push ghcr.io/42-course/hypertube-api:latest
+          docker push ghcr.io/42-course/hypertube-api:${{ github.sha }}

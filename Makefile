@@ -2,7 +2,7 @@
         test coverage logs seed generate db-reset db-create db-drop \
         setup-front front-install lint-api \
         prod-bundle prod-login prod-build prod-push \
-        kamal-setup kamal-deploy kamal-rollback kamal-redeploy
+        kamal-setup kamal-deploy kamal-rollback
 
 COMPOSE      = docker compose
 BACKEND_SVC  = backend
@@ -52,13 +52,10 @@ help:
 	@printf "\n  \033[36mFrontend\033[0m\n"
 	@printf "    make setup-front    Install frontend dependencies (bun)\n"
 	@printf "\n  \033[36mProduction (Kamal → fractalia.art)\033[0m\n"
-	@printf "    make prod-bundle    Install kamal/thruster gems in dev container\n"
-	@printf "    make prod-build     Build production image with Podman\n"
-	@printf "    make prod-push      Build + push to ghcr.io\n"
-	@printf "    make kamal-setup    First-time server setup (run once)\n"
-	@printf "    make kamal-deploy   Full deploy (build + push + rolling deploy)\n"
-	@printf "    make kamal-redeploy Redeploy without rebuilding\n"
+	@printf "    make kamal-setup    First-time server provisioning (run once)\n"
+	@printf "    make kamal-deploy   Deploy image built by CI for current commit\n"
 	@printf "    make kamal-rollback Roll back to previous release\n"
+	@printf "    make prod-push      Emergency: build + push image locally\n"
 	@printf "\n"
 
 build:
@@ -125,41 +122,40 @@ setup-front:
 	cd web && bun install
 
 # ─── Production / Kamal ──────────────────────────────────────────────────────
+# CI/CD (cd.yml) owns building and pushing the image on every push to main.
+# These targets assume the image is already in the registry.
+
 # Install kamal + thruster gems into the dev container's bundle cache.
-# Run this once after adding them to the Gemfile.
+# Run once after adding them to the Gemfile.
 prod-bundle:
 	$(DC_RUN) bundle install
 
-# Login to ghcr.io using the token stored in api/.kamal/secrets.
+# ── Emergency / local-only image management ───────────────────────────────────
+# Use these only when you need to push an image outside of CI (e.g. hotfix).
 prod-login:
 	@sed -n 's/^KAMAL_REGISTRY_PASSWORD=//p' api/.kamal/secrets | \
 	  docker login ghcr.io -u $(GHCR_USER) --password-stdin
 
-# Build the production image with Podman and tag it with the current git SHA.
 prod-build:
 	docker build -f api/Dockerfile.production \
 	  -t $(PROD_IMAGE):$(GIT_SHA) \
 	  -t $(PROD_IMAGE):latest \
 	  api/
 
-# Login, build, and push to ghcr.io.
 prod-push: prod-login prod-build
 	docker push $(PROD_IMAGE):$(GIT_SHA)
 	docker push $(PROD_IMAGE):latest
 
-# First-time server provisioning: installs Docker, starts proxy + accessories,
-# then deploys the app (image must already be in the registry via prod-push).
-kamal-setup: prod-push prod-bundle
+# ── Kamal deployment ──────────────────────────────────────────────────────────
+# First-time server provisioning: installs Docker, starts proxy + accessories.
+# Push to main first so CI builds the image, then run this.
+kamal-setup:
 	ssh-keyscan -H 167.71.57.19 >> $(HOME)/.ssh/known_hosts 2>/dev/null || true
 	$(KAMAL) setup --skip-push
 
-# Full deploy: rebuild image, push, then rolling-redeploy on the server.
-kamal-deploy: prod-push prod-bundle
+# Deploy the image that CI already built and pushed for the current commit.
+kamal-deploy:
 	$(KAMAL) deploy --skip-push
-
-# Redeploy whatever is already in the registry (no rebuild).
-kamal-redeploy:
-	$(KAMAL) redeploy
 
 # Roll back to the previous release.
 kamal-rollback:
