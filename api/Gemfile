@@ -1,0 +1,6 @@
+# Bootstrap Gemfile — only used to build the Docker image before `make init`.
+# Running `make init` will replace this with a full Rails-generated Gemfile
+# and append all project dependencies automatically.
+source "https://rubygems.org"
+
+gem "rails", "~> 8.0"

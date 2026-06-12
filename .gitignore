@@ -1,0 +1,31 @@
+# ─── Environment files (never commit secrets) ────────────────────────────────
+api/.env.local
+api/.env.production
+web/.env.local
+web/.env.production
+.env.local
+.env.production
+.env
+en.subject.pdf
+
+# ─── Ruby / Rails ─────────────────────────────────────────────────────────────
+api/.bundle/
+api/log/
+api/tmp/
+api/storage/
+api/public/uploads/
+api/coverage/
+api/Gemfile.lock
+
+# ─── Node / Bun ──────────────────────────────────────────────────────────────
+web/node_modules/
+web/dist/
+web/.bun/
+node_modules/
+
+# ─── Docker / Podman ─────────────────────────────────────────────────────────
+*.pid
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
