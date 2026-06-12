@@ -23,14 +23,14 @@ gem "kamal", require: false
 gem "thruster", require: false
 
 # Authentication gems
-gem "devise", "~> 4.9"
-gem "devise-jwt", "~> 0.11"
+gem "devise", ">= 5.0.4"
+gem "devise-jwt", "~> 0.13"
 gem "omniauth", "~> 2.1"
 gem "omniauth-oauth2", "~> 1.8"
 gem "omniauth-google-oauth2", "~> 1.1"
 gem "omniauth-rails_csrf_protection", "~> 1.0"
 
-# OAuth2 provider (token endpoint) 
+# OAuth2 provider (token endpoint)
 gem "doorkeeper", "~> 5.7"
 gem "rswag-api"
 gem "rswag-ui"

@@ -24,7 +24,7 @@ RSpec.configure do |config|
           }
         }
       },
-      security: [{ oauth2: [] }],
+      security: [ { oauth2: [] } ],
       servers: [
         {
           url: ENV.fetch("API_URL", "http://localhost:3000"),

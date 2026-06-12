@@ -24,7 +24,7 @@ RSpec.describe "Movies API", type: :request do
 
     get "Get movie details" do
       tags     "Movies"
-      security [{ oauth2: [] }]
+      security [ { oauth2: [] } ]
       produces "application/json"
 
       response "200", "returns movie details" do

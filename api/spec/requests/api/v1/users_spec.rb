@@ -8,7 +8,7 @@ RSpec.describe "Users API", type: :request do
   path "/api/v1/users" do
     get "List users" do
       tags        "Users"
-      security    [{ oauth2: [] }]
+      security    [ { oauth2: [] } ]
       produces    "application/json"
 
       response "200", "returns list of users" do
@@ -31,7 +31,7 @@ RSpec.describe "Users API", type: :request do
 
     get "Get a user" do
       tags     "Users"
-      security [{ oauth2: [] }]
+      security [ { oauth2: [] } ]
       produces "application/json"
 
       response "200", "returns user profile" do
@@ -51,7 +51,7 @@ RSpec.describe "Users API", type: :request do
 
     patch "Update a user" do
       tags        "Users"
-      security    [{ oauth2: [] }]
+      security    [ { oauth2: [] } ]
       consumes    "application/json"
       produces    "application/json"
       parameter name: :body, in: :body, schema: {

@@ -9,7 +9,7 @@ RSpec.describe "Comments API", type: :request do
   path "/api/v1/comments" do
     get "List latest comments" do
       tags     "Comments"
-      security [{ oauth2: [] }]
+      security [ { oauth2: [] } ]
       produces "application/json"
 
       response "200", "returns comments" do
@@ -27,16 +27,16 @@ RSpec.describe "Comments API", type: :request do
 
     post "Post a comment on a movie" do
       tags        "Comments"
-      security    [{ oauth2: [] }]
+      security    [ { oauth2: [] } ]
       consumes    "application/json"
       produces    "application/json"
       parameter name: :body, in: :body, schema: {
         type: :object,
-        required: ["comment"],
+        required: [ "comment" ],
         properties: {
           comment: {
             type: :object,
-            required: ["content"],
+            required: [ "content" ],
             properties: {
               content: { type: :string, example: "Great movie!" }
             }
@@ -65,7 +65,7 @@ RSpec.describe "Comments API", type: :request do
 
     get "Get a comment" do
       tags     "Comments"
-      security [{ oauth2: [] }]
+      security [ { oauth2: [] } ]
       produces "application/json"
 
       response "200", "returns comment" do
@@ -76,7 +76,7 @@ RSpec.describe "Comments API", type: :request do
 
     patch "Update a comment" do
       tags     "Comments"
-      security [{ oauth2: [] }]
+      security [ { oauth2: [] } ]
       consumes "application/json"
       produces "application/json"
       parameter name: :body, in: :body, schema: {
@@ -105,7 +105,7 @@ RSpec.describe "Comments API", type: :request do
 
     delete "Delete a comment" do
       tags     "Comments"
-      security [{ oauth2: [] }]
+      security [ { oauth2: [] } ]
 
       response "204", "comment deleted" do
         let(:id) { comment.id }
