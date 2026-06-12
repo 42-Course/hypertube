@@ -1,5 +1,5 @@
 service: hypertube-api
-image: ghcr.io/42-course/hypertube-api
+image: 42-course/hypertube-api
 
 servers:
   web:

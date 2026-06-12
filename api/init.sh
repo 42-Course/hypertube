@@ -31,12 +31,6 @@ if [ ! -f "config/application.rb" ]; then
     --force
   echo "  Rails application generated."
 
-  # Rails 8 generates its own Dockerfile (production multi-stage build).
-  # Rename it so it coexists with our Dockerfile.dev (used by docker-compose).
-  if [ -f "Dockerfile" ]; then
-    mv Dockerfile Dockerfile.production
-    echo "  Renamed Rails-generated Dockerfile → Dockerfile.production"
-  fi
 else
   echo "  Rails app already present – skipping rails new."
 fi
