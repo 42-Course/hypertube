@@ -25,9 +25,17 @@ RSpec.configure do |config|
         }
       },
       security: [ { oauth2: [] } ],
+      # Both known deployments are baked into the generated swagger.yaml so the
+      # same file works everywhere — Swagger UI shows a dropdown to switch.
+      # Production is listed first so it is the default when served from
+      # https://fractalia.art/api-docs.
       servers: [
         {
-          url: ENV.fetch("API_URL", "http://localhost:3000"),
+          url: "https://fractalia.art",
+          description: "Production"
+        },
+        {
+          url: "http://localhost:3000",
           description: "Development"
         }
       ]

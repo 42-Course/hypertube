@@ -15,6 +15,8 @@ components:
 security:
 - oauth2: []
 servers:
+- url: https://fractalia.art
+  description: Production
 - url: http://localhost:3000
   description: Development
 paths:
