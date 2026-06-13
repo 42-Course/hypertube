@@ -51,5 +51,25 @@ RSpec.describe User, type: :model do
       user2 = User.from_omniauth(auth)
       expect(user1.id).to eq(user2.id)
     end
+
+    it "derives the username from the email when no nickname is given" do
+      auth_no_nick = OmniAuth::AuthHash.new(
+        provider: "google_oauth2", uid: "777",
+        info: { email: "ada@example.com", first_name: "Ada", last_name: "Lovelace" }
+      )
+      user = User.from_omniauth(auth_no_nick)
+      expect(user.username).to eq("ada")
+    end
+
+    it "falls back to blank names when the provider omits them" do
+      auth_bare = OmniAuth::AuthHash.new(
+        provider: "fortytwo", uid: "888",
+        info: { email: "noname@example.com", nickname: "noname" }
+      )
+      user = User.from_omniauth(auth_bare)
+      expect(user.first_name).to eq("")
+      expect(user.last_name).to eq("")
+      expect(user.username).to eq("noname")
+    end
   end
 end

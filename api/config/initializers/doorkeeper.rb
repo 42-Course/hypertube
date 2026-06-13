@@ -22,10 +22,10 @@ Doorkeeper.configure do
 
   # This block will be called to check whether the resource owner is authenticated or not.
   resource_owner_authenticator do
-    raise "Please configure doorkeeper resource_owner_authenticator block located in #{__FILE__}"
-    # Put your resource owner authentication logic here.
-    # Example implementation:
-    # User.find_by(id: session[:user_id]) || redirect_to(new_user_session_url)
+    # The API uses the Resource Owner Password Credentials flow
+    # (`resource_owner_from_credentials` below), so the authorization
+    # endpoint is not part of the normal flow. We still provide a sane
+    # implementation here instead of raising, so the server never 500s.
     User.find_by(id: doorkeeper_token&.resource_owner_id)
   end
 

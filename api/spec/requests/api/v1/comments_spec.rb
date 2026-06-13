@@ -20,6 +20,43 @@ RSpec.describe "Comments API", type: :request do
         end
       end
     end
+
+    post "Post a comment (movie_id in body)" do
+      tags        "Comments"
+      security    [ { oauth2: [] } ]
+      consumes    "application/json"
+      produces    "application/json"
+      description "Alternative to POST /movies/:movie_id/comments. " \
+                  "The movie_id is supplied in the payload; the rest is filled by the server."
+      parameter name: :body, in: :body, schema: {
+        type: :object,
+        required: %w[comment],
+        properties: {
+          comment: {
+            type: :object,
+            required: %w[content movie_id],
+            properties: {
+              content:  { type: :string, example: "Great movie!" },
+              movie_id: { type: :integer, example: 1 }
+            }
+          }
+        }
+      }
+
+      response "201", "comment created" do
+        let(:body) { { comment: { content: "Loved it!", movie_id: movie.id } } }
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["content"]).to eq("Loved it!")
+          expect(data["movie_id"]).to eq(movie.id)
+        end
+      end
+
+      response "422", "invalid content" do
+        let(:body) { { comment: { content: "", movie_id: movie.id } } }
+        run_test!
+      end
+    end
   end
 
   path "/api/v1/movies/{movie_id}/comments" do
@@ -72,6 +109,14 @@ RSpec.describe "Comments API", type: :request do
         let(:id) { comment.id }
         run_test!
       end
+
+      response "404", "comment not found" do
+        let(:id) { 0 }
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["error"]).to eq("Comment not found")
+        end
+      end
     end
 
     patch "Update a comment" do
@@ -100,6 +145,15 @@ RSpec.describe "Comments API", type: :request do
         let(:id)            { other_comment.id }
         let(:body)          { { comment: { content: "hacked" } } }
         run_test!
+      end
+
+      response "422", "invalid update" do
+        let(:id)   { comment.id }
+        let(:body) { { comment: { content: "x" * 1001 } } } # exceeds max length
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data).to have_key("errors")
+        end
       end
     end
 

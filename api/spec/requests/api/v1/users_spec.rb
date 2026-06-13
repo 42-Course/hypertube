@@ -24,6 +24,56 @@ RSpec.describe "Users API", type: :request do
         run_test!
       end
     end
+
+    post "Register a new user" do
+      tags     "Users"
+      security []
+      consumes "application/json"
+      produces "application/json"
+      description "Public endpoint. Creates a new account; no token is required " \
+                  "because the user does not exist yet. After registering, obtain " \
+                  "an access token via POST /oauth/token."
+      parameter name: :body, in: :body, schema: {
+        type: :object,
+        required: %w[user],
+        properties: {
+          user: {
+            type: :object,
+            required: %w[email username first_name last_name password],
+            properties: {
+              email:               { type: :string, example: "ada@example.com" },
+              username:            { type: :string, example: "ada_l" },
+              first_name:          { type: :string, example: "Ada" },
+              last_name:           { type: :string, example: "Lovelace" },
+              password:            { type: :string, example: "Password1!" },
+              preferred_language:  { type: :string, example: "en" },
+              profile_picture_url: { type: :string, example: "https://example.com/me.png" }
+            }
+          }
+        }
+      }
+
+      response "201", "user created" do
+        let(:body) do
+          { user: { email: "ada@example.com", username: "ada_l",
+                    first_name: "Ada", last_name: "Lovelace",
+                    password: "Password1!" } }
+        end
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["username"]).to eq("ada_l")
+          expect(data["email"]).to eq("ada@example.com")
+        end
+      end
+
+      response "422", "invalid registration" do
+        let(:body) { { user: { email: "bad", username: "x" } } }
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data).to have_key("errors")
+        end
+      end
+    end
   end
 
   path "/api/v1/users/{id}" do
@@ -79,6 +129,15 @@ RSpec.describe "Users API", type: :request do
         let(:id)    { other.id }
         let(:body)  { { user: { username: "hacked" } } }
         run_test!
+      end
+
+      response "422", "invalid update" do
+        let(:id)   { user.id }
+        let(:body) { { user: { username: "a" } } } # too short / fails validation
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data).to have_key("errors")
+        end
       end
     end
   end

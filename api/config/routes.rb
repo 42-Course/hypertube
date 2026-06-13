@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
-  devise_for :users
+  devise_for :users,
+             controllers: { omniauth_callbacks: "users/omniauth_callbacks" }
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
@@ -16,13 +17,17 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
-      resources :users, only: %i[index show update]
+      # Forgot-password flow (request reset email + set new password via token).
+      resource :password, only: %i[create update], controller: "passwords"
+
+      resources :users, only: %i[index show update create]
 
       resources :movies, only: %i[index show] do
         resources :comments, only: %i[create]
       end
 
-      resources :comments, only: %i[index show update destroy]
+      # Subject: "POST /comments OR POST /movies/:movie_id/comments"
+      resources :comments, only: %i[index show create update destroy]
     end
   end
 end

@@ -28,6 +28,40 @@ paths:
       responses:
         '200':
           description: returns comments
+    post:
+      summary: Post a comment (movie_id in body)
+      tags:
+      - Comments
+      security:
+      - oauth2: []
+      description: Alternative to POST /movies/:movie_id/comments. The movie_id is
+        supplied in the payload; the rest is filled by the server.
+      parameters: []
+      responses:
+        '201':
+          description: comment created
+        '422':
+          description: invalid content
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - comment
+              properties:
+                comment:
+                  type: object
+                  required:
+                  - content
+                  - movie_id
+                  properties:
+                    content:
+                      type: string
+                      example: Great movie!
+                    movie_id:
+                      type: integer
+                      example: 1
   "/api/v1/movies/{movie_id}/comments":
     parameters:
     - name: movie_id
@@ -79,6 +113,8 @@ paths:
       responses:
         '200':
           description: returns comment
+        '404':
+          description: comment not found
     patch:
       summary: Update a comment
       tags:
@@ -91,6 +127,8 @@ paths:
           description: comment updated
         '403':
           description: cannot edit another user's comment
+        '422':
+          description: invalid update
       requestBody:
         content:
           application/json:
@@ -139,6 +177,67 @@ paths:
           description: returns movie details
         '401':
           description: unauthorized
+  "/api/v1/password":
+    post:
+      summary: Request a password reset email
+      tags:
+      - Authentication
+      security: []
+      description: Sends reset instructions to the email if it is registered. Always
+        returns 200 so accounts cannot be enumerated.
+      parameters: []
+      responses:
+        '200':
+          description: same response for an unknown email (no enumeration)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user
+              properties:
+                user:
+                  type: object
+                  required:
+                  - email
+                  properties:
+                    email:
+                      type: string
+                      example: forgetful@example.com
+    patch:
+      summary: Set a new password using the reset token
+      tags:
+      - Authentication
+      security: []
+      parameters: []
+      responses:
+        '200':
+          description: password reset with a valid token
+        '422':
+          description: invalid or expired token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user
+              properties:
+                user:
+                  type: object
+                  required:
+                  - reset_password_token
+                  - password
+                  properties:
+                    reset_password_token:
+                      type: string
+                    password:
+                      type: string
+                      example: NewPass1!
+                    password_confirmation:
+                      type: string
+                      example: NewPass1!
   "/api/v1/users":
     get:
       summary: List users
@@ -151,6 +250,58 @@ paths:
           description: returns list of users
         '401':
           description: unauthorized
+    post:
+      summary: Register a new user
+      tags:
+      - Users
+      security: []
+      description: Public endpoint. Creates a new account; no token is required because
+        the user does not exist yet. After registering, obtain an access token via
+        POST /oauth/token.
+      parameters: []
+      responses:
+        '201':
+          description: user created
+        '422':
+          description: invalid registration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user
+              properties:
+                user:
+                  type: object
+                  required:
+                  - email
+                  - username
+                  - first_name
+                  - last_name
+                  - password
+                  properties:
+                    email:
+                      type: string
+                      example: ada@example.com
+                    username:
+                      type: string
+                      example: ada_l
+                    first_name:
+                      type: string
+                      example: Ada
+                    last_name:
+                      type: string
+                      example: Lovelace
+                    password:
+                      type: string
+                      example: Password1!
+                    preferred_language:
+                      type: string
+                      example: en
+                    profile_picture_url:
+                      type: string
+                      example: https://example.com/me.png
   "/api/v1/users/{id}":
     parameters:
     - name: id
@@ -181,6 +332,8 @@ paths:
           description: user updated
         '403':
           description: forbidden — cannot update another user
+        '422':
+          description: invalid update
       requestBody:
         content:
           application/json:
@@ -196,3 +349,126 @@ paths:
                       type: string
                     profile_picture_url:
                       type: string
+  "/oauth/token":
+    post:
+      summary: Obtain an access token
+      tags:
+      - Authentication
+      security: []
+      description: |
+        Exchange credentials for an access token using the OAuth2
+        Resource Owner Password Credentials grant.
+
+        Send `grant_type=password` together with the user's `username`
+        (their username **or** email) and `password`, plus the
+        `client_id`/`client_secret` of a registered OAuth application.
+
+        The response contains an `access_token` to be sent as
+        `Authorization: Bearer <token>` on subsequent requests.
+      parameters: []
+      responses:
+        '200':
+          description: token issued
+        '400':
+          description: invalid credentials
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - grant_type
+              - client_id
+              - client_secret
+              properties:
+                grant_type:
+                  type: string
+                  example: password
+                username:
+                  type: string
+                  example: ada_l
+                  description: Username or email of the user
+                password:
+                  type: string
+                  example: Password1!
+                client_id:
+                  type: string
+                  example: the-application-uid
+                client_secret:
+                  type: string
+                  example: the-application-secret
+  "/oauth/revoke":
+    post:
+      summary: Revoke an access token
+      tags:
+      - Authentication
+      security: []
+      description: Revoke a previously issued access token. Used on logout.
+      parameters: []
+      responses:
+        '200':
+          description: token revoked
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              - client_id
+              - client_secret
+              properties:
+                token:
+                  type: string
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+  "/users/auth/{provider}":
+    parameters:
+    - name: provider
+      in: path
+      enum:
+      - google_oauth2
+      - fortytwo
+      description: Identity provider to authenticate with
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Start provider login
+      tags:
+      - Authentication
+      security: []
+      description: |
+        Point the browser here to begin login with an external provider
+        (Google or 42). The server hands off to the provider's consent screen
+        and, after approval, the provider redirects back to the callback below.
+
+        This is a redirect endpoint meant for the browser — not an XHR/JSON call.
+      responses:
+        '302':
+          description: redirect to the provider
+  "/users/auth/{provider}/callback":
+    parameters:
+    - name: provider
+      in: path
+      enum:
+      - google_oauth2
+      - fortytwo
+      required: true
+      schema:
+        type: string
+    get:
+      summary: Provider OAuth2 callback
+      tags:
+      - Authentication
+      security: []
+      description: |
+        The provider redirects here after the user approves access. The server
+        provisions (or finds) the matching user, mints an access token, and
+        redirects to `FRONTEND_URL/auth/callback#access_token=...&token_type=Bearer`.
+        The SPA reads the token from the URL fragment.
+      responses:
+        '302':
+          description: redirect to the SPA with an access token

@@ -6,9 +6,13 @@
 
 COMPOSE      = docker compose
 BACKEND_SVC  = backend
+# DC_RUN spins up a throwaway container (use when the service may be down, e.g.
+# bundle install). DC_EXEC reuses the already-running container (`make up`)
+# instead of recreating one each time.
 DC_RUN       = $(COMPOSE) run --rm $(BACKEND_SVC)
-DC_EXEC      = $(COMPOSE) run $(BACKEND_SVC)
-BUNDLE_EXEC  = $(DC_EXEC) bundle exec
+DC_EXEC      = $(COMPOSE) exec $(BACKEND_SVC)
+# Runs *inside* the container, so it must not re-invoke docker compose.
+BUNDLE_EXEC  = bundle exec
 RAILS        = $(DC_EXEC) $(BUNDLE_EXEC) rails
 
 # ── Production ────────────────────────────────────────────────────────────────
@@ -111,10 +115,10 @@ docs:
 	$(RAILS) rswag:specs:swaggerize
 
 test:
-	$(COMPOSE) run -e RAILS_ENV=test $(BACKEND_SVC) bundle exec rspec
+	$(COMPOSE) exec -e RAILS_ENV=test $(BACKEND_SVC) bundle exec rspec
 
 coverage:
-	$(COMPOSE) run -e RAILS_ENV=test $(BACKEND_SVC) bash -c "COVERAGE=true bundle exec rspec --format documentation"
+	$(COMPOSE) exec -e RAILS_ENV=test $(BACKEND_SVC) bash -c "COVERAGE=true bundle exec rspec --format documentation"
 	@echo "\033[1mCoverage report generated at api/coverage/index.html\033[0m"
 
 # ─── Frontend ────────────────────────────────────────────────────────────────
