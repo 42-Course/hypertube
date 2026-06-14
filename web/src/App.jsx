@@ -42,17 +42,18 @@ function App() {
           </p>
         </section>
 
-        <section className="movies-section">
+        <section className="container-xl overflow-y-auto">
           <h2>Top Movies</h2>
           {movies.length === 0 ? (
             <p className="empty">
               No movies yet - implement the torrent sources in the Rails API to populate this list.
             </p>
           ) : (
-            <ul className="movie-grid">
+            <ul className="flex gap-1 flex-row p-1">
               {movies.map((m) => (
-                <li key={m.id} className="movie-card">
-                  {m.name}
+                <li key={m.id} className="flex flex-col items-center justify-around outline-2">
+                  <p> {m.title}</p>
+                  <span> {m.year} </span>
                 </li>
               ))}
             </ul>
