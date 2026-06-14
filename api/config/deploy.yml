@@ -33,6 +33,7 @@ env:
     SMTP_HOST: smtp.gmail.com
     SMTP_PORT: "587"
     MAILER_FROM: noreply@fractalia.art
+    PROWLARR_URL: https://prowlarr.pulgamecanica.com
   secret:
     - RAILS_MASTER_KEY
     - DATABASE_PASSWORD
@@ -46,7 +47,6 @@ env:
     - SMTP_PASSWORD
     - OMDB_API_KEY
     - TMDB_API_KEY
-    - PROWLARR_URL
     - PROWLARR_API_KEY
 
 accessories:
