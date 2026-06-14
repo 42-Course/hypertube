@@ -475,7 +475,7 @@ paths:
         '200':
           description: user updated
         '403':
-          description: forbidden, cannot update another user
+          description: forbidden cannot update another user
         '422':
           description: invalid update
       requestBody:
@@ -507,7 +507,7 @@ paths:
         (their username **or** email) and `password`, plus the
         `client_id`/`client_secret` of a registered OAuth application.
 
-        If you are curious: these are the different grant types:
+        If you are curious, these are the different grant types:
         `https://github.com/doorkeeper-gem/doorkeeper/blob/main/lib/doorkeeper/grant_flow.rb`
 
         The response contains an `access_token` to be sent as
@@ -589,10 +589,10 @@ paths:
       security: []
       description: |
         Point the browser here to begin login with an external provider
-        (Google or 42). The server hands off to the provider's consent screen
+        (`google_oauth2` or `forty_two`). The server hands off to the provider's consent screen
         and, after approval, the provider redirects back to the callback below.
 
-        This is a redirect endpoint meant for the browser, not an XHR/JSON call.
+        This is a redirect endpoint meant for the browser not an XHR/JSON call.
       responses:
         '302':
           description: redirect to the provider
