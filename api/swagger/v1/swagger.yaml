@@ -27,9 +27,21 @@ paths:
       - Comments
       security:
       - oauth2: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        required: false
+        description: 1-100 (default 20)
+        schema:
+          type: integer
       responses:
         '200':
-          description: returns comments
+          description: returns paginated comments
     post:
       summary: Post a comment (movie_id in body)
       tags:
@@ -71,6 +83,27 @@ paths:
       required: true
       schema:
         type: integer
+    get:
+      summary: List comments for a movie
+      tags:
+      - Comments
+      security:
+      - oauth2: []
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        required: false
+        description: 1-100 (default 20)
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: returns the movie's comments only
     post:
       summary: Post a comment on a movie
       tags:
@@ -155,12 +188,119 @@ paths:
           description: cannot delete another user's comment
   "/api/v1/movies":
     get:
-      summary: List top movies (public)
+      summary: List saved movies (local catalog)
       tags:
       - Movies
+      description: Public. Browses movies already saved in our DB (everything anyone
+        has searched/opened). Pure DB query paginated and filterable. Use /movies/search
+        to discover new films.
+      parameters:
+      - name: query
+        in: query
+        required: false
+        description: matches the title
+        schema:
+          type: string
+      - name: genre
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: min_year
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: max_year
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: min_rating
+        in: query
+        required: false
+        schema:
+          type: number
+      - name: sort
+        in: query
+        required: false
+        description: name | year | rating | popularity
+        schema:
+          type: string
+      - name: order
+        in: query
+        required: false
+        description: asc | desc
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        required: false
+        description: 1-100 (default 20)
+        schema:
+          type: integer
       responses:
         '200':
-          description: returns movie list
+          description: filters and paginates the catalog
+  "/api/v1/movies/search":
+    get:
+      summary: Search movies (external sources)
+      tags:
+      - Movies
+      description: Public. Queries the external sources (TMDb + Prowlarr), persists
+        each film locally, then sorts/filters/paginates. With no query, returns the
+        most popular films.
+      parameters:
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: sort
+        in: query
+        required: false
+        description: name | year | rating | genre | popularity
+        schema:
+          type: string
+      - name: order
+        in: query
+        required: false
+        description: asc | desc
+        schema:
+          type: string
+      - name: genre
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: min_year
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: max_year
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: min_rating
+        in: query
+        required: false
+        schema:
+          type: number
+      responses:
+        '200':
+          description: returns aggregated, persisted movies
   "/api/v1/movies/{id}":
     parameters:
     - name: id
@@ -177,6 +317,8 @@ paths:
       responses:
         '200':
           description: returns movie details
+        '404':
+          description: movie not found
         '401':
           description: unauthorized
   "/api/v1/password":
@@ -333,7 +475,7 @@ paths:
         '200':
           description: user updated
         '403':
-          description: forbidden — cannot update another user
+          description: forbidden, cannot update another user
         '422':
           description: invalid update
       requestBody:
@@ -364,6 +506,9 @@ paths:
         Send `grant_type=password` together with the user's `username`
         (their username **or** email) and `password`, plus the
         `client_id`/`client_secret` of a registered OAuth application.
+
+        If you are curious: these are the different grant types:
+        `https://github.com/doorkeeper-gem/doorkeeper/blob/main/lib/doorkeeper/grant_flow.rb`
 
         The response contains an `access_token` to be sent as
         `Authorization: Bearer <token>` on subsequent requests.
@@ -430,13 +575,13 @@ paths:
     parameters:
     - name: provider
       in: path
-      enum:
-      - google_oauth2
-      - fortytwo
-      description: Identity provider to authenticate with
       required: true
       schema:
         type: string
+        enum:
+        - google_oauth2
+        - fortytwo
+      description: Identity provider to authenticate with
     get:
       summary: Start provider login
       tags:
@@ -447,7 +592,7 @@ paths:
         (Google or 42). The server hands off to the provider's consent screen
         and, after approval, the provider redirects back to the callback below.
 
-        This is a redirect endpoint meant for the browser — not an XHR/JSON call.
+        This is a redirect endpoint meant for the browser, not an XHR/JSON call.
       responses:
         '302':
           description: redirect to the provider
@@ -455,12 +600,12 @@ paths:
     parameters:
     - name: provider
       in: path
-      enum:
-      - google_oauth2
-      - fortytwo
       required: true
       schema:
         type: string
+        enum:
+        - google_oauth2
+        - fortytwo
     get:
       summary: Provider OAuth2 callback
       tags:

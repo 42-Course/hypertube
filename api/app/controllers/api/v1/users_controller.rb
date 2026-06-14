@@ -1,5 +1,5 @@
 class Api::V1::UsersController < ApplicationController
-  # Registration is public — a user cannot hold a token before they exist.
+  # Registration is public a user cannot hold a token before they exist.
   skip_before_action :doorkeeper_authorize!, only: %i[create]
   before_action :set_user, only: %i[show update]
 
@@ -9,7 +9,7 @@ class Api::V1::UsersController < ApplicationController
     render json: users
   end
 
-  # POST /api/v1/users — public registration
+  # POST /api/v1/users public registration
   def create
     user = User.new(registration_params)
 

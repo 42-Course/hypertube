@@ -2,7 +2,7 @@ class Api::V1::PasswordsController < ApplicationController
   # Public: a user who forgot their password obviously has no token.
   skip_before_action :doorkeeper_authorize!
 
-  # POST /api/v1/password — request a reset email.
+  # POST /api/v1/password request a reset email.
   #
   # Always responds 200 with the same message, whether or not the email is
   # registered, so the endpoint cannot be used to enumerate accounts.
@@ -15,7 +15,7 @@ class Api::V1::PasswordsController < ApplicationController
     }
   end
 
-  # PATCH/PUT /api/v1/password — set a new password using the emailed token.
+  # PATCH/PUT /api/v1/password set a new password using the emailed token.
   def update
     user = User.reset_password_by_token(
       reset_password_token:  params.dig(:user, :reset_password_token),

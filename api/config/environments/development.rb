@@ -23,8 +23,15 @@ Rails.application.configure do
     config.action_controller.perform_caching = false
   end
 
-  # Change to :null_store to avoid any caching.
-  config.cache_store = :memory_store
+  # Redis-backed cache so external movie-source responses are memoized across
+  # requests (and across server processes). Change to :null_store to disable.
+  config.cache_store = :redis_cache_store, {
+    url:                ENV.fetch("REDIS_URL", "redis://redis:6379/0"),
+    namespace:          "hypertube_cache",
+    error_handler:      ->(method:, returning:, exception:) {
+      Rails.logger.warn("[cache] #{method} failed: #{exception.class} #{exception.message}")
+    }
+  }
 
   # Don't care if the mailer can't send.
   config.action_mailer.raise_delivery_errors = false

@@ -23,7 +23,12 @@ Rails.application.routes.draw do
       resources :users, only: %i[index show update create]
 
       resources :movies, only: %i[index show] do
-        resources :comments, only: %i[create]
+        # Discovery against the external sources (TMDb + Prowlarr); /movies
+        # itself only browses films already saved in our DB.
+        get :search, on: :collection
+
+        # Subject: comments are reachable via /movies/:id/comments (list + create).
+        resources :comments, only: %i[index create]
       end
 
       # Subject: "POST /comments OR POST /movies/:movie_id/comments"

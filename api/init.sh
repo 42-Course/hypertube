@@ -134,7 +134,7 @@ if [ ! -f "app/controllers/api/v1/movies_controller.rb" ]; then
 class Api::V1::MoviesController < ApplicationController
   skip_before_action :doorkeeper_authorize!, only: %i[index]
 
-  # GET /api/v1/movies  — public: returns top movies for the front page
+  # GET /api/v1/movies, public: returns top movies for the front page
   def index
     render json: { movies: [], message: "TODO: integrate external torrent sources" }
   end

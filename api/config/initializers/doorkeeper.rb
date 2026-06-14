@@ -30,7 +30,7 @@ Doorkeeper.configure do
   end
 
   # Called for POST /oauth/token with grant_type=password.
-  # This is the primary auth method — the React frontend exchanges
+  # This is the primary auth method the React frontend exchanges
   # username + password for an access token here.
   resource_owner_from_credentials do |_routes|
     user = User.find_for_database_authentication(email: params[:username]) ||

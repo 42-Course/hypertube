@@ -41,6 +41,9 @@ gem "rack-cors"
 # BG jobs
 gem "sidekiq", "~> 7.0"
 
+# Redis-backed Rails.cache (memoizes external movie-source responses)
+gem "redis", ">= 4.0.1"
+
 # HTTP client for external sources
 gem "faraday", "~> 2.0"
 
@@ -67,4 +70,7 @@ group :development, :test do
   gem "simplecov", require: false
   gem "simplecov-lcov", require: false
   gem "rswag-specs"
+
+  # Stub external HTTP calls (movie sources) in specs so the suite is offline + deterministic.
+  gem "webmock"
 end

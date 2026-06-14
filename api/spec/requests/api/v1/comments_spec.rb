@@ -11,12 +11,18 @@ RSpec.describe "Comments API", type: :request do
       tags     "Comments"
       security [ { oauth2: [] } ]
       produces "application/json"
+      parameter name: :page,     in: :query, type: :integer, required: false
+      parameter name: :per_page, in: :query, type: :integer, required: false,
+                                 description: "1-100 (default 20)"
 
-      response "200", "returns comments" do
+      response "200", "returns paginated comments" do
         before { create(:comment, user: user, movie: movie) }
         run_test! do |response|
           data = JSON.parse(response.body)
-          expect(data).to be_an(Array)
+          expect(data["comments"]).to be_an(Array)
+          expect(data["page"]).to eq(1)
+          expect(data["per_page"]).to eq(20)
+          expect(data["total"]).to eq(1)
         end
       end
     end
@@ -61,6 +67,30 @@ RSpec.describe "Comments API", type: :request do
 
   path "/api/v1/movies/{movie_id}/comments" do
     parameter name: :movie_id, in: :path, type: :integer
+
+    get "List comments for a movie" do
+      tags     "Comments"
+      security [ { oauth2: [] } ]
+      produces "application/json"
+      parameter name: :page,     in: :query, type: :integer, required: false
+      parameter name: :per_page, in: :query, type: :integer, required: false,
+                                 description: "1-100 (default 20)"
+
+      response "200", "returns the movie's comments only" do
+        let(:movie_id) { movie.id }
+        let(:other_movie) { create(:movie) }
+        before do
+          create(:comment, user: user, movie: movie, content: "On this movie")
+          create(:comment, user: user, movie: other_movie, content: "On another")
+        end
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["total"]).to eq(1)
+          expect(data["comments"].size).to eq(1)
+          expect(data["comments"].first["content"]).to eq("On this movie")
+        end
+      end
+    end
 
     post "Post a comment on a movie" do
       tags        "Comments"

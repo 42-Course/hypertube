@@ -8,7 +8,7 @@ module OmniAuth
     # Built on omniauth-oauth2 so no extra gem is required.
     #
     # The provider symbol is :fortytwo, which OmniAuth camelizes to
-    # `OmniAuth::Strategies::Fortytwo` — so the class name must stay "Fortytwo".
+    # `OmniAuth::Strategies::Fortytwo` so the class name must stay "Fortytwo".
     class Fortytwo < OmniAuth::Strategies::OAuth2
       option :name, "fortytwo"
 

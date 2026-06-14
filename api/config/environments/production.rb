@@ -40,8 +40,14 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Replace the default in-process memory cache store with a durable alternative.
-  # config.cache_store = :mem_cache_store
+  # Redis-backed cache (memoizes external movie-source responses).
+  config.cache_store = :redis_cache_store, {
+    url:           ENV.fetch("REDIS_URL", "redis://redis:6379/0"),
+    namespace:     "hypertube_cache",
+    error_handler: ->(method:, returning:, exception:) {
+      Rails.logger.warn("[cache] #{method} failed: #{exception.class} #{exception.message}")
+    }
+  }
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   # config.active_job.queue_adapter = :resque

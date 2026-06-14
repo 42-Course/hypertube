@@ -124,7 +124,7 @@ RSpec.describe "Users API", type: :request do
         run_test!
       end
 
-      response "403", "forbidden — cannot update another user" do
+      response "403", "forbidden cannot update another user" do
         let(:other) { create(:user) }
         let(:id)    { other.id }
         let(:body)  { { user: { username: "hacked" } } }

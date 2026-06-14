@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_12_194425) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_13_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -33,11 +33,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_12_194425) do
     t.string "imdb_id"
     t.datetime "last_watched_at"
     t.string "magnet_hash"
+    t.decimal "popularity", precision: 10, scale: 3
     t.decimal "rating"
     t.text "summary"
     t.string "title"
+    t.integer "tmdb_id"
     t.datetime "updated_at", null: false
     t.integer "year"
+    t.index ["imdb_id"], name: "index_movies_on_imdb_id", unique: true, where: "(imdb_id IS NOT NULL)"
+    t.index ["tmdb_id"], name: "index_movies_on_tmdb_id", unique: true, where: "(tmdb_id IS NOT NULL)"
   end
 
   create_table "oauth_access_grants", force: :cascade do |t|

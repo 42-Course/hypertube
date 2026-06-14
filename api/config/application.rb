@@ -1,7 +1,6 @@
 require_relative "boot"
 
 require "rails"
-# API-only — load only what we need
 require "active_model/railtie"
 require "active_job/railtie"
 require "active_record/railtie"

@@ -1,11 +1,27 @@
 class Api::V1::CommentsController < ApplicationController
   before_action :set_comment, only: %i[show update destroy]
 
-  # GET /api/v1/comments
+  PER_PAGE = 20
+
+  # GET /api/v1/comments                  latest comments site-wide
+  # GET /api/v1/movies/:movie_id/comments comments for one movie
+  #
+  # Paginated newest-first. Params: page, per_page (1-100, default 20).
   def index
-    comments = Comment.order(created_at: :desc).limit(50)
-    render json: comments.as_json(only: %i[id content created_at],
-                                  include: { user: { only: %i[id username] } })
+    scope = Comment.order(created_at: :desc)
+    scope = scope.where(movie_id: params[:movie_id]) if params[:movie_id]
+
+    total    = scope.count
+    comments = scope.limit(per_page).offset((page - 1) * per_page)
+
+    render json: {
+      page:        page,
+      per_page:    per_page,
+      total:       total,
+      total_pages: (total.to_f / per_page).ceil,
+      comments:    comments.as_json(only: %i[id content created_at],
+                                    include: { user: { only: %i[id username] } })
+    }
   end
 
   # GET /api/v1/comments/:id
@@ -50,6 +66,15 @@ class Api::V1::CommentsController < ApplicationController
   end
 
   private
+
+  def page
+    [ params.fetch(:page, 1).to_i, 1 ].max
+  end
+
+  # Clamp per_page to a sane range so a client can't request the whole table.
+  def per_page
+    params.fetch(:per_page, PER_PAGE).to_i.clamp(1, 100)
+  end
 
   def set_comment
     @comment = Comment.find(params[:id])

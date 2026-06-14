@@ -46,6 +46,8 @@ env:
     - SMTP_PASSWORD
     - OMDB_API_KEY
     - TMDB_API_KEY
+    - PROWLARR_URL
+    - PROWLARR_API_KEY
 
 accessories:
   db:

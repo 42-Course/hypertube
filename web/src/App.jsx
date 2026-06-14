@@ -14,7 +14,7 @@ function App() {
         setMovies(res.data.movies || [])
       })
       .catch(() =>
-        setApiStatus('unreachable — run `make up` to start the backend')
+        setApiStatus('unreachable - run `make up` to start the backend')
       )
   }, [])
 
@@ -46,7 +46,7 @@ function App() {
           <h2>Top Movies</h2>
           {movies.length === 0 ? (
             <p className="empty">
-              No movies yet — implement the torrent sources in the Rails API to populate this list.
+              No movies yet - implement the torrent sources in the Rails API to populate this list.
             </p>
           ) : (
             <ul className="movie-grid">

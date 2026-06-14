@@ -11,7 +11,7 @@ RSpec.describe "OAuth", type: :request do
   path "/oauth/token" do
     post "Obtain an access token" do
       tags     "Authentication"
-      security [] # public — this is how a client first authenticates
+      security [] # public this is how a client first authenticates
       consumes "application/json"
       produces "application/json"
       description <<~DESC
@@ -21,6 +21,9 @@ RSpec.describe "OAuth", type: :request do
         Send `grant_type=password` together with the user's `username`
         (their username **or** email) and `password`, plus the
         `client_id`/`client_secret` of a registered OAuth application.
+
+        If you are curious, these are the different grant types:
+        `https://github.com/doorkeeper-gem/doorkeeper/blob/main/lib/doorkeeper/grant_flow.rb`
 
         The response contains an `access_token` to be sent as
         `Authorization: Bearer <token>` on subsequent requests.

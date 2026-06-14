@@ -13,7 +13,7 @@ RUN apt-get update -qq && \
 WORKDIR /app
 
 # All gems (including rails itself) go into the bundle_cache volume at /gems.
-# Nothing is pre-installed into the image — init.sh does `bundle install` first
+# Nothing is pre-installed into the image init.sh does `bundle install` first
 # using the bootstrap Gemfile (gem 'rails'), which puts the rails binary into
 # /gems/bin before `rails new` is called.
 ENV GEM_HOME=/gems \

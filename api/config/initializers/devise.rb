@@ -275,11 +275,11 @@ Devise.setup do |config|
   require Rails.root.join("lib", "omniauth", "strategies", "fortytwo")
 
   config.omniauth :google_oauth2,
-                  ENV["GOOGLE_CLIENT_ID"], ENV["GOOGLE_CLIENT_SECRET"],
+                  ENV["OMNIAUTH_GOOGLE_CLIENT_ID"], ENV["OMNIAUTH_GOOGLE_CLIENT_SECRET"],
                   scope: "email,profile"
 
   config.omniauth :fortytwo,
-                  ENV["FORTYTWO_CLIENT_ID"], ENV["FORTYTWO_CLIENT_SECRET"],
+                  ENV["OMNIAUTH_42_CLIENT_ID"], ENV["OMNIAUTH_42_CLIENT_SECRET"],
                   scope: "public"
 
   # ==> Warden configuration

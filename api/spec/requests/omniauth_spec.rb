@@ -14,7 +14,8 @@ RSpec.describe "Provider login (OmniAuth)", type: :request do
     OmniAuth.config.mock_auth[:fortytwo] = OmniAuth::AuthHash.new(
       provider: "fortytwo", uid: "42-1",
       info: { email: "norm@example.com", first_name: "Norm",
-              last_name: "Forty", nickname: "nforty" }
+              last_name: "Forty", nickname: "nforty",
+              image: "https://cdn.intra.42.fr/users/norm.jpg" }
     )
   end
 
@@ -25,8 +26,8 @@ RSpec.describe "Provider login (OmniAuth)", type: :request do
   end
 
   path "/users/auth/{provider}" do
-    parameter name: :provider, in: :path, type: :string,
-              enum: %w[google_oauth2 fortytwo],
+    parameter name: :provider, in: :path, required: true,
+              schema: { type: :string, enum: %w[google_oauth2 fortytwo] },
               description: "Identity provider to authenticate with"
 
     get "Start provider login" do
@@ -34,10 +35,10 @@ RSpec.describe "Provider login (OmniAuth)", type: :request do
       security []
       description <<~DESC
         Point the browser here to begin login with an external provider
-        (Google or 42). The server hands off to the provider's consent screen
+        (`google_oauth2` or `forty_two`). The server hands off to the provider's consent screen
         and, after approval, the provider redirects back to the callback below.
 
-        This is a redirect endpoint meant for the browser — not an XHR/JSON call.
+        This is a redirect endpoint meant for the browser not an XHR/JSON call.
       DESC
 
       response "302", "redirect to the provider" do
@@ -48,8 +49,8 @@ RSpec.describe "Provider login (OmniAuth)", type: :request do
   end
 
   path "/users/auth/{provider}/callback" do
-    parameter name: :provider, in: :path, type: :string,
-              enum: %w[google_oauth2 fortytwo]
+    parameter name: :provider, in: :path, required: true,
+              schema: { type: :string, enum: %w[google_oauth2 fortytwo] }
 
     get "Provider OAuth2 callback" do
       tags     "Authentication"
@@ -71,8 +72,14 @@ RSpec.describe "Provider login (OmniAuth)", type: :request do
     end
   end
 
-  # Edge cases — plain request specs (not part of the published docs).
+  # Edge cases plain request specs (not part of the published docs).
   describe "callback edge cases" do
+    it "provisions the user with the profile picture from the provider" do
+      get "/users/auth/fortytwo/callback"
+      user = User.find_by(provider: "fortytwo", uid: "42-1")
+      expect(user.profile_picture_url).to eq("https://cdn.intra.42.fr/users/norm.jpg")
+    end
+
     it "redirects to the SPA login with an error when the provider fails" do
       OmniAuth.config.mock_auth[:google_oauth2] = :invalid_credentials
       get "/users/auth/google_oauth2/callback"
