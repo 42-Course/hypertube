@@ -382,6 +382,50 @@ paths:
                     password_confirmation:
                       type: string
                       example: NewPass1!
+  "/api/v1/session":
+    post:
+      summary: Log in with email/username + password
+      tags:
+      - Authentication
+      security: []
+      description: Exchanges credentials for a first-party access token. Unlike POST
+        /oauth/token, this requires no client_id or client_secret the SPA is a trusted
+        first-party client and the token is minted server-side. Use the returned access_token
+        as a Bearer token.
+      parameters: []
+      responses:
+        '201':
+          description: also accepts the username as the login
+        '401':
+          description: unknown account (same response, no enumeration)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - login
+              - password
+              properties:
+                login:
+                  type: string
+                  description: Email or username
+                  example: login@example.com
+                password:
+                  type: string
+                  example: Password1!
+    delete:
+      summary: Log out (revoke the current access token)
+      tags:
+      - Authentication
+      security:
+      - oauth2: []
+      description: Revokes the access token presented in the Authorization header.
+      responses:
+        '204':
+          description: token revoked
+        '401':
+          description: unauthorized no token
   "/api/v1/users":
     get:
       summary: List users

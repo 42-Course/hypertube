@@ -8,6 +8,8 @@
 # redirects back to the SPA with the token in the URL fragment (kept out of
 # server access logs and never sent back to the server).
 class Users::OmniauthCallbacksController < ActionController::Base
+  include FirstPartyTokens
+
   skip_forgery_protection
 
   # Devise maps /users/auth/:provider/callback to an action named after the
@@ -32,25 +34,6 @@ class Users::OmniauthCallbacksController < ActionController::Base
       redirect_to success_redirect_url(token), allow_other_host: true
     else
       redirect_to "#{frontend_url}/login?error=oauth_invalid", allow_other_host: true
-    end
-  end
-
-  # Mint a token tied to the trusted first-party application so the SPA can
-  # immediately call the API as the authenticated user.
-  def issue_access_token(user)
-    Doorkeeper::AccessToken.create!(
-      resource_owner_id: user.id,
-      application_id:    first_party_application.id,
-      scopes:            "",
-      expires_in:        2.hours,
-      use_refresh_token: false
-    )
-  end
-
-  def first_party_application
-    Doorkeeper::Application.find_or_create_by!(name: "Hypertube Web") do |app|
-      app.redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
-      app.confidential = false
     end
   end
 
