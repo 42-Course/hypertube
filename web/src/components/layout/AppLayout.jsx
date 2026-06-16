@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom'
-import { clearAccessToken } from '../../features/auth/authStorage'
+import { useAuth } from '../../features/auth/useAuth'
 import Header from './Header'
 
 function AppLayout({ children }) {
   const navigate = useNavigate()
+  const { signOut } = useAuth()
 
-  function handleLogout() {
-    clearAccessToken()
+  async function handleLogout() {
+    await signOut()
     navigate('/login', { replace: true })
   }
 

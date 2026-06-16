@@ -21,6 +21,13 @@ class Api::V1::UsersController < ApplicationController
     end
   end
 
+  # GET /api/v1/me current authenticated user's own full profile.
+  def me
+    render json: current_user.as_json(
+      only: %i[id username email first_name last_name profile_picture_url preferred_language]
+    )
+  end
+
   # GET /api/v1/users/:id
   def show
     render json: @user.as_json(only: %i[id username profile_picture_url])

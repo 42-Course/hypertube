@@ -18,10 +18,24 @@ class User < ApplicationRecord
     where(provider: auth.provider, uid: auth.uid).first_or_create do |user|
       user.email               = auth.info.email
       user.password            = Devise.friendly_token[0, 20]
-      user.first_name          = auth.info.first_name.presence || ""
-      user.last_name           = auth.info.last_name.presence  || ""
-      user.username            = auth.info.nickname.presence   || auth.info.email.to_s.split("@").first
+      user.username            = unique_username_from(auth)
+      user.first_name          = auth.info.first_name.presence || user.username
+      user.last_name           = auth.info.last_name.presence  || user.username
       user.profile_picture_url = auth.info.image.presence
     end
+  end
+
+  def self.unique_username_from(auth)
+    base = (auth.info.nickname.presence || auth.info.email.to_s.split("@").first.to_s)
+             .gsub(/[^a-zA-Z0-9_]/, "_")
+    base = "user" if base.length < 3
+
+    candidate = base
+    counter = 0
+    while exists?([ "LOWER(username) = LOWER(?)", candidate ])
+      counter += 1
+      candidate = "#{base}_#{counter}"
+    end
+    candidate
   end
 end

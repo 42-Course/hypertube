@@ -1,11 +1,26 @@
 import { useRef, useState } from 'react'
 import { mockProfile } from '../features/profile/mockProfile'
+import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
+
+// Fallback avatar for accounts without a picture (e.g. password sign-ups).
+function fallbackAvatar(user) {
+  const name = encodeURIComponent(
+    `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+  )
+  return `https://ui-avatars.com/api/?name=${name}&background=18181b&color=f87171&size=256`
+}
 
 function ProfilePage() {
   const { language, setLanguage, t } = useI18n()
-  const [avatarPreview, setAvatarPreview] = useState(mockProfile.avatarUrl)
+  const { user } = useAuth()
+  const [avatarPreview, setAvatarPreview] = useState(
+    user.profilePictureUrl || fallbackAvatar(user),
+  )
   const fileInputRef = useRef(null)
+
+  // History has no API endpoint yet; keep a placeholder list for the layout.
+  const watchedMovies = mockProfile.watchedMovies
 
   function handleAvatarClick() {
     fileInputRef.current?.click()
@@ -30,7 +45,7 @@ function ProfilePage() {
               <img
                 className="h-28 w-28 rounded-full border-4 border-zinc-800 object-cover"
                 src={avatarPreview}
-                alt={`Avatar de ${mockProfile.username}`}
+                alt={`Avatar de ${user.username}`}
               />
               <button
                 className="absolute bottom-1 right-1 grid h-9 w-9 place-items-center rounded-full border border-zinc-700 bg-zinc-950 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-zinc-900"
@@ -52,9 +67,9 @@ function ProfilePage() {
               {t('profile.avatarFormats')}
             </p>
             <h1 className="mt-5 text-2xl font-semibold text-white">
-              {mockProfile.firstName} {mockProfile.lastName}
+              {user.firstName} {user.lastName}
             </h1>
-            <p className="mt-1 text-sm text-red-400">@{mockProfile.username}</p>
+            <p className="mt-1 text-sm text-red-400">@{user.username}</p>
             <p className="mt-4 text-sm leading-6 text-zinc-400">
               {t('profile.description')}
             </p>
@@ -63,7 +78,7 @@ function ProfilePage() {
           <div className="mt-6 grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-zinc-950 p-4 text-center">
               <p className="text-2xl font-semibold text-white">
-                {mockProfile.watchedMovies.length}
+                {watchedMovies.length}
               </p>
               <p className="mt-1 text-xs uppercase tracking-[0.16em] text-zinc-500">
                 {t('profile.watchedMovies')}
@@ -102,7 +117,7 @@ function ProfilePage() {
                 <span className="text-sm font-medium text-zinc-300">{t('profile.firstName')}</span>
                 <input
                   className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  defaultValue={mockProfile.firstName}
+                  defaultValue={user.firstName}
                   type="text"
                 />
               </label>
@@ -110,7 +125,7 @@ function ProfilePage() {
                 <span className="text-sm font-medium text-zinc-300">{t('profile.lastName')}</span>
                 <input
                   className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  defaultValue={mockProfile.lastName}
+                  defaultValue={user.lastName}
                   type="text"
                 />
               </label>
@@ -118,7 +133,7 @@ function ProfilePage() {
                 <span className="text-sm font-medium text-zinc-300">{t('profile.username')}</span>
                 <input
                   className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  defaultValue={mockProfile.username}
+                  defaultValue={user.username}
                   type="text"
                 />
               </label>
@@ -126,7 +141,7 @@ function ProfilePage() {
                 <span className="text-sm font-medium text-zinc-300">{t('profile.privateEmail')}</span>
                 <input
                   className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  defaultValue={mockProfile.email}
+                  defaultValue={user.email}
                   type="email"
                 />
               </label>
@@ -173,7 +188,7 @@ function ProfilePage() {
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-3">
-          {mockProfile.watchedMovies.map((movie) => (
+          {watchedMovies.map((movie) => (
             <article className="rounded-xl border border-zinc-800 bg-zinc-950 p-4" key={movie.id}>
               <h3 className="font-semibold text-white">{movie.title}</h3>
               <p className="mt-2 text-sm text-zinc-400">

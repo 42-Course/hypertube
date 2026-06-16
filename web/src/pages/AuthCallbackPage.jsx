@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { saveAccessToken } from '../features/auth/authStorage'
+import { useAuth } from '../features/auth/useAuth'
 
 function AuthCallbackPage() {
   const navigate = useNavigate()
+  const { refresh } = useAuth()
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.slice(1))
@@ -15,8 +17,11 @@ function AuthCallbackPage() {
     }
 
     saveAccessToken(accessToken)
-    navigate('/movies', { replace: true })
-  }, [navigate])
+    // Load the user behind the new token before entering the app.
+    refresh().then((user) => {
+      navigate(user ? '/movies' : '/login?error=oauth_failed', { replace: true })
+    })
+  }, [navigate, refresh])
 
   return (
     <main className="grid min-h-screen place-items-center bg-zinc-950 px-6 text-zinc-100">

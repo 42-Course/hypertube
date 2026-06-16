@@ -1,20 +1,59 @@
-import { useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { getAccessToken, saveAccessToken } from '../features/auth/authStorage'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { fortyTwoLoginUrl, login as loginRequest } from '../features/auth/authApi'
+import { saveAccessToken } from '../features/auth/authStorage'
+import { useAuth } from '../features/auth/useAuth'
+
+// Errors the 42 OAuth callback can redirect back with (see the Rails
+// Users::OmniauthCallbacksController).
+const OAUTH_ERRORS = {
+  oauth_failed: 'La connexion avec 42 a echoue. Reessaie.',
+  oauth_invalid: 'Compte 42 invalide ou non autorise.',
+}
 
 function LoginPage() {
   const navigate = useNavigate()
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+  const [searchParams] = useSearchParams()
+  const { isAuthenticated, refresh } = useAuth()
   const isDev = import.meta.env.DEV
 
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(() => OAUTH_ERRORS[searchParams.get('error')] || '')
+
   useEffect(() => {
-    if (getAccessToken()) {
+    if (isAuthenticated) {
       navigate('/movies', { replace: true })
     }
-  }, [navigate])
+  }, [isAuthenticated, navigate])
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSubmitting(true)
+
+    try {
+      const { accessToken } = await loginRequest({
+        login: identifier.trim(),
+        password,
+      })
+      saveAccessToken(accessToken)
+      await refresh()
+      navigate('/movies', { replace: true })
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setError('Identifiants invalides.')
+      } else {
+        setError('Une erreur est survenue. Reessaie plus tard.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   function handleFortyTwoLogin() {
-    window.location.href = `${apiUrl}/users/auth/fortytwo`
+    window.location.href = fortyTwoLoginUrl()
   }
 
   function handleDevLogin() {
@@ -33,7 +72,16 @@ function LoginPage() {
           Accede a ton espace pour rechercher, regarder et commenter les videos.
         </p>
 
-        <form className="mt-8 space-y-5">
+        {error && (
+          <p
+            className="mt-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <label className="block">
             <span className="text-sm font-medium text-zinc-200">
               Username ou email
@@ -43,6 +91,8 @@ function LoginPage() {
               name="username"
               type="text"
               autoComplete="username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
             />
           </label>
@@ -56,15 +106,18 @@ function LoginPage() {
               name="password"
               type="password"
               autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
           </label>
 
           <button
-            className="w-full rounded-lg bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-400"
+            className="w-full rounded-lg bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
+            disabled={submitting}
           >
-            Se connecter
+            {submitting ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
 

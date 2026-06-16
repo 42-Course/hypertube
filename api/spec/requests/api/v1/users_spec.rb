@@ -5,6 +5,31 @@ RSpec.describe "Users API", type: :request do
   let(:token) { create(:doorkeeper_access_token, resource_owner_id: user.id) }
   let(:Authorization) { "Bearer #{token.token}" }
 
+  path "/api/v1/me" do
+    get "Get the current authenticated user" do
+      tags     "Users"
+      security [ { oauth2: [] } ]
+      produces "application/json"
+      description "Returns the full profile of the user the access token belongs " \
+                  "to (including private fields like email)."
+
+      response "200", "returns the current user" do
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["id"]).to eq(user.id)
+          expect(data["username"]).to eq(user.username)
+          expect(data["email"]).to eq(user.email)
+          expect(data.keys).to include("first_name", "last_name", "preferred_language")
+        end
+      end
+
+      response "401", "unauthorized no token" do
+        let(:Authorization) { nil }
+        run_test!
+      end
+    end
+  end
+
   path "/api/v1/users" do
     get "List users" do
       tags        "Users"

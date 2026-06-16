@@ -426,6 +426,20 @@ paths:
           description: token revoked
         '401':
           description: unauthorized no token
+  "/api/v1/me":
+    get:
+      summary: Get the current authenticated user
+      tags:
+      - Users
+      security:
+      - oauth2: []
+      description: Returns the full profile of the user the access token belongs to
+        (including private fields like email).
+      responses:
+        '200':
+          description: returns the current user
+        '401':
+          description: unauthorized no token
   "/api/v1/users":
     get:
       summary: List users
