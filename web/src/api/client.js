@@ -16,11 +16,12 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401 clear token and redirect to login
 client.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url = error.config?.url || "";
+    const isSessionEndpoint = url.includes("/api/v1/session");
+    if (error.response?.status === 401 && !isSessionEndpoint) {
       clearAccessToken();
       window.location.href = "/login";
     }

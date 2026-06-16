@@ -1,0 +1,62 @@
+name: Deploy Web
+
+# Builds the React app and publishes it to the `docs` branch, which GitHub
+# Pages serves at http://hypertube.fractalia.art/. Runs only when something
+# under web/ (or this workflow) changes on main.
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'web/**'
+      - '.github/workflows/deploy-web.yml'
+
+# Allow the job to push the built site to the docs branch.
+permissions:
+  contents: write
+
+# Never run two deploys at once; a newer push supersedes an in-flight one.
+concurrency:
+  group: deploy-web
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: web
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+        env:
+          VITE_API_URL: https://fractalia.art
+          VITE_APP_NAME: Hypertube
+
+      # GitHub Pages serves static files; for a client-side-routed SPA, unknown
+      # paths (e.g. /movies, /auth/callback) must fall back to index.html.
+      - name: Add SPA 404 fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Publish to docs branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web/dist
+          publish_branch: docs
+          # Keep the custom domain on every force-push deploy.
+          cname: hypertube.fractalia.art
+          # Replace the branch with a single fresh commit each deploy.
+          force_orphan: true

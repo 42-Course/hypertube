@@ -61,15 +61,39 @@ RSpec.describe User, type: :model do
       expect(user.username).to eq("ada")
     end
 
-    it "falls back to blank names when the provider omits them" do
+    it "falls back to the username when the provider omits names" do
       auth_bare = OmniAuth::AuthHash.new(
         provider: "fortytwo", uid: "888",
         info: { email: "noname@example.com", nickname: "noname" }
       )
       user = User.from_omniauth(auth_bare)
-      expect(user.first_name).to eq("")
-      expect(user.last_name).to eq("")
+      expect(user).to be_persisted
+      expect(user.first_name).to eq("noname")
+      expect(user.last_name).to eq("noname")
       expect(user.username).to eq("noname")
+    end
+
+    it "sanitizes a provider nickname that violates the username format" do
+      auth_hyphen = OmniAuth::AuthHash.new(
+        provider: "fortytwo", uid: "97835",
+        info: { email: "arosado-@student.42.fr", first_name: "Andre",
+                last_name: "Rosado", nickname: "arosado-" }
+      )
+      user = User.from_omniauth(auth_hyphen)
+      expect(user).to be_persisted
+      expect(user.username).to eq("arosado_")
+    end
+
+    it "appends a numeric suffix when the derived username is taken" do
+      create(:user, username: "arosado_")
+      auth_hyphen = OmniAuth::AuthHash.new(
+        provider: "fortytwo", uid: "97835",
+        info: { email: "arosado-@student.42.fr", first_name: "Andre",
+                last_name: "Rosado", nickname: "arosado-" }
+      )
+      user = User.from_omniauth(auth_hyphen)
+      expect(user).to be_persisted
+      expect(user.username).to eq("arosado__1")
     end
   end
 end

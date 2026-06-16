@@ -8,9 +8,14 @@
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     origins(
+      # Production frontend (GitHub Pages, served from the docs branch).
+      "http://hypertube.fractalia.art",
+      "https://hypertube.fractalia.art",
       "https://hypertube.pulgamecanica.com",
+      # Local development (Vite, etc.) on any port.
       %r{\Ahttps?://localhost(:\d+)?\z},
       %r{\Ahttps?://127\.0\.0\.1(:\d+)?\z},
+      # Deploy-specific override.
       ENV.fetch("FRONTEND_URL", "http://localhost:5173")
     )
 
