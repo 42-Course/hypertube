@@ -17,6 +17,10 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
+      # Email/username + password login. Mints a first-party access token
+      # without requiring OAuth client credentials (POST create / DELETE destroy).
+      resource :session, only: %i[create destroy], controller: "sessions"
+
       # Forgot-password flow (request reset email + set new password via token).
       resource :password, only: %i[create update], controller: "passwords"
 

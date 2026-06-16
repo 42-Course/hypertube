@@ -7,7 +7,12 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins ENV.fetch("FRONTEND_URL", "http://localhost:5173")
+    origins(
+      "https://hypertube.pulgamecanica.com",
+      %r{\Ahttps?://localhost(:\d+)?\z},
+      %r{\Ahttps?://127\.0\.0\.1(:\d+)?\z},
+      ENV.fetch("FRONTEND_URL", "http://localhost:5173")
+    )
 
     resource "*",
       headers: :any,
