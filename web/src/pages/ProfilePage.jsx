@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import { updateProfile } from '../features/auth/authApi'
-import { mockProfile } from '../features/profile/mockProfile'
 import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 
@@ -64,7 +63,7 @@ function ProfilePage() {
   const [success, setSuccess] = useState('')
 
   // History has no API endpoint yet; keep a placeholder list for the layout.
-  const watchedMovies = mockProfile.watchedMovies
+  const watchedMovies = []
 
   function updateField(name, value) {
     setForm((currentForm) => ({ ...currentForm, [name]: value }))

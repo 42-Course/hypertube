@@ -1,18 +1,5 @@
 import client from '../../api/client'
 
-function formatDuration(duration) {
-  if (!duration) return null
-  if (typeof duration === 'string') return duration
-
-  const hours = Math.floor(duration / 60)
-  const minutes = duration % 60
-
-  if (hours === 0) return `${minutes}m`
-  if (minutes === 0) return `${hours}h`
-
-  return `${hours}h ${minutes}m`
-}
-
 function normalizeMovie(movie) {
   return {
     id: movie.id,
@@ -30,8 +17,8 @@ function normalizeMovie(movie) {
 function normalizeMovieDetail(movie) {
   return {
     ...normalizeMovie(movie),
-    summary: movie.summary,
-    length: formatDuration(movie.duration),
+    summary: movie.summary || '',
+    duration: movie.duration || null,
     subtitles: movie.subtitles || [],
     commentsCount: movie.comments_count || 0,
   }
@@ -42,7 +29,8 @@ function normalizeComment(comment) {
     id: comment.id,
     content: comment.content,
     createdAt: comment.created_at,
-    author: comment.user?.username,
+    author: comment.user?.username || null,
+    authorId: comment.user?.id ?? null,
   }
 }
 
@@ -77,21 +65,20 @@ export async function searchMovies({ page, query, genre, year, rating, sort }) {
   }
 }
 
-export async function fetchMovieDetails(movieId) {
-  const { data } = await client.get(`/api/v1/movies/${movieId}`)
-
+export async function getMovieDetails(movieId) {
+  const { data } = await client.get('/api/v1/movies/' + movieId)
   return normalizeMovieDetail(data)
 }
 
-export async function fetchMovieComments(movieId, page = 1) {
-  const { data } = await client.get(`/api/v1/movies/${movieId}/comments`, {
-    params: { page },
-  })
+export async function getMovieComments({ movieId, page, perPage }) {
+  const params = { page, per_page: perPage }
+  const { data } = await client.get('/api/v1/movies/' + movieId + '/comments', { params })
 
   return {
-    page: data.page || page,
-    total: data.total || 0,
-    totalPages: data.total_pages || 1,
+    page: data.page,
+    perPage: data.per_page,
+    total: data.total,
+    totalPages: data.total_pages,
     comments: (data.comments || []).map(normalizeComment),
   }
 }
