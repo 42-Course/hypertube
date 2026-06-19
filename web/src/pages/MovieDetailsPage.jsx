@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { getMovieDetails } from '../features/movies/moviesApi'
+import MovieComments from '../features/movies/MovieComments'
 
 function MovieDetailsPage() {
   const { movieId } = useParams()
@@ -163,30 +164,7 @@ function MovieDetailsPage() {
         </aside>
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-2xl font-semibold text-white">
-              Comments
-              <span className="ml-2 text-base font-normal text-zinc-500">({movie.commentsCount})</span>
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              Users will be able to discuss the movie here.
-            </p>
-          </div>
-          <button className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400" type="button">
-            Add comment
-          </button>
-        </div>
-
-        <div className="mt-5">
-          <p className="rounded-xl border border-dashed border-zinc-800 p-5 text-sm text-zinc-500">
-            {movie.commentsCount === 0
-              ? 'No comments yet.'
-              : 'Comments will appear here once the discussion endpoint is wired up.'}
-          </p>
-        </div>
-      </section>
+      <MovieComments movieId={movie.id} initialCount={movie.commentsCount} />
     </section>
   )
 }

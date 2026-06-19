@@ -55,6 +55,29 @@ export async function searchMovies({ page, query, genre, year, rating, sort }) {
   }
 }
 
+function normalizeComment(comment) {
+  return {
+    id: comment.id,
+    content: comment.content,
+    createdAt: comment.created_at,
+    author: comment.user?.username || 'Unknown',
+    authorId: comment.user?.id ?? null,
+  }
+}
+
+export async function getMovieComments({ movieId, page, perPage }) {
+  const params = { page, per_page: perPage }
+  const { data } = await client.get('/api/v1/movies/' + movieId + '/comments', { params })
+
+  return {
+    page: data.page,
+    perPage: data.per_page,
+    total: data.total,
+    totalPages: data.total_pages,
+    comments: (data.comments || []).map(normalizeComment),
+  }
+}
+
 export async function getMovieDetails(movieId) {
   const { data } = await client.get('/api/v1/movies/' + movieId)
   return normalizeMovieDetail(data)
