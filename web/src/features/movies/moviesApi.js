@@ -14,6 +14,16 @@ function normalizeMovie(movie) {
   }
 }
 
+function normalizeMovieDetail(movie) {
+  return {
+    ...normalizeMovie(movie),
+    summary: movie.summary || '',
+    duration: movie.duration || null,
+    subtitles: movie.subtitles || [],
+    commentsCount: movie.comments_count || 0,
+  }
+}
+
 export async function searchMovies({ page, query, genre, year, rating, sort }) {
   const params = {
     page,
@@ -43,4 +53,9 @@ export async function searchMovies({ page, query, genre, year, rating, sort }) {
     page: data.page || page,
     movies: (data.movies || []).map(normalizeMovie),
   }
+}
+
+export async function getMovieDetails(movieId) {
+  const { data } = await client.get('/api/v1/movies/' + movieId)
+  return normalizeMovieDetail(data)
 }

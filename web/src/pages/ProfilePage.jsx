@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react'
-import { mockProfile } from '../features/profile/mockProfile'
 import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 
@@ -20,7 +19,7 @@ function ProfilePage() {
   const fileInputRef = useRef(null)
 
   // History has no API endpoint yet; keep a placeholder list for the layout.
-  const watchedMovies = mockProfile.watchedMovies
+  const watchedMovies = []
 
   function handleAvatarClick() {
     fileInputRef.current?.click()
