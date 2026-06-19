@@ -3,11 +3,9 @@ import MovieCard from '../features/movies/MovieCard'
 import MovieFilters from '../features/movies/MovieFilters'
 import MovieSearch from '../features/movies/MovieSearch'
 import { searchMovies } from '../features/movies/moviesApi'
-import { mockMovies } from '../features/movies/mockMovies'
 import { useI18n } from '../i18n/useI18n'
 
 const FIRST_PAGE = 1
-const FORCE_MOCK_MOVIES = false
 
 function MoviesPage() {
   const { t } = useI18n()
@@ -24,7 +22,6 @@ function MoviesPage() {
   const [page, setPage] = useState(FIRST_PAGE)
   const [hasMoreMovies, setHasMoreMovies] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
-  const [isUsingMockFallback, setIsUsingMockFallback] = useState(false)
   const watchedCount = movies.filter((movie) => movie.watched).length
   const sortLabel = t(`movies.sort.${sort}`)
 
@@ -33,15 +30,6 @@ function MoviesPage() {
       const requestId = requestIdRef.current + 1
       requestIdRef.current = requestId
       setIsLoading(true)
-
-      if (FORCE_MOCK_MOVIES) {
-        setMovies(mockMovies)
-        setPage(FIRST_PAGE)
-        setHasMoreMovies(false)
-        setIsUsingMockFallback(true)
-        setIsLoading(false)
-        return
-      }
 
       try {
         const result = await searchMovies({
@@ -62,16 +50,13 @@ function MoviesPage() {
         )
         setPage(result.page)
         setHasMoreMovies(result.movies.length > 0)
-        setIsUsingMockFallback(false)
       } catch {
         if (requestId !== requestIdRef.current) {
           return
         }
 
-        setMovies(mockMovies)
         setPage(FIRST_PAGE)
         setHasMoreMovies(false)
-        setIsUsingMockFallback(true)
       } finally {
         if (requestId === requestIdRef.current) {
           setIsLoading(false)
@@ -104,7 +89,7 @@ function MoviesPage() {
   useEffect(() => {
     const loadMoreElement = loadMoreRef.current
 
-    if (!loadMoreElement || !hasMoreMovies || isLoading || isUsingMockFallback) {
+    if (!loadMoreElement || !hasMoreMovies || isLoading) {
       return undefined
     }
 
@@ -120,7 +105,7 @@ function MoviesPage() {
     observer.observe(loadMoreElement)
 
     return () => observer.disconnect()
-  }, [hasMoreMovies, isLoading, isUsingMockFallback, loadMovies, page])
+  }, [hasMoreMovies, isLoading, loadMovies, page])
 
   return (
     <>
@@ -167,7 +152,7 @@ function MoviesPage() {
             <h2 className="text-2xl font-semibold text-white">{t('movies.popular')}</h2>
             <p className="mt-1 text-sm text-zinc-500">
               {t('movies.resultsCount', { count: movies.length })} ·{' '}
-              {isUsingMockFallback ? t('movies.mockNotice') : t('movies.apiNotice')}
+              {movies.length ? t('movies.noMoviesReturned') : t('movies.apiNotice')}
             </p>
           </div>
           <p className="text-sm text-zinc-500">
@@ -188,7 +173,7 @@ function MoviesPage() {
           </div>
         )}
 
-        {(hasMoreMovies || isLoading) && !isUsingMockFallback && (
+        {(hasMoreMovies || isLoading) && (
           <div ref={loadMoreRef} className="mt-8 flex justify-center">
             <div className="rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-400">
               {t('movies.loadingMore')}

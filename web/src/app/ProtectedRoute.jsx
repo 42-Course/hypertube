@@ -9,7 +9,7 @@ function ProtectedRoute({ children }) {
   if (status === 'loading') {
     return (
       <main className="grid min-h-screen place-items-center bg-zinc-950 text-zinc-400">
-        <p className="text-sm">Chargement...</p>
+        <p className="text-sm">Loading...</p>
       </main>
     )
   }

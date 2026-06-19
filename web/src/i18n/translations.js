@@ -15,7 +15,7 @@ export const translations = {
       videos: 'Videos',
       watched: 'Watched',
       popular: 'Popular',
-      mockNotice: 'Temporary data until the API is connected.',
+      noMoviesReturned: 'No movies returned, check that the API is connected.',
       apiNotice: 'Live data from the API.',
       sortByPopularity: 'Sorted by popularity',
       sort: {
@@ -88,7 +88,7 @@ export const translations = {
       videos: 'Videos',
       watched: 'Deja vues',
       popular: 'Populaires',
-      mockNotice: 'Donnees temporaires en attendant le branchement API.',
+      noMoviesReturned: 'Verifiee ou attendant le branchement API.',
       apiNotice: "Donnees chargees depuis l'API.",
       sortByPopularity: 'Trie par popularite',
       sort: {
