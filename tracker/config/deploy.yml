@@ -1,0 +1,41 @@
+# Kamal deploy config for the Hypertube private BitTorrent tracker (opentracker).
+#
+# This is a SEPARATE Kamal app from api/ — it shares the same droplet and the
+# same kamal-proxy, but has its own image and lifecycle. Run its commands with
+# the `make tracker-*` targets (which point kamal at this file).
+service: hypertube-tracker
+image: 42-course/opentracker
+
+servers:
+  web:
+    hosts:
+      - 167.71.57.19
+    # opentracker speaks UDP too, which kamal-proxy cannot carry. Publish the
+    # UDP port straight to the host (proxy still handles TCP/HTTPS below).
+    options:
+      publish:
+        - "6969:6969/udp"
+
+# kamal-proxy terminates TLS for opentracker.fractalia.art and forwards the
+# HTTP announce/scrape to the container's TCP port. Same shared proxy as the api.
+proxy:
+  ssl: true
+  host: opentracker.fractalia.art
+  app_port: 6969
+  # opentracker has no /up endpoint (it 404s). /stats returns 200, so the proxy
+  # uses it to confirm the container is healthy before routing traffic.
+  # NOTE: if you restrict the stats page (access.stats in opentracker.conf),
+  # change this path or the healthcheck will fail.
+  healthcheck:
+    path: /stats
+    interval: 3
+    timeout: 3
+
+registry:
+  server: ghcr.io
+  username: 42-Course
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64

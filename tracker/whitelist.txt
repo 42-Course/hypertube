@@ -1,0 +1,20 @@
+# opentracker whitelist — permitted torrents for the Hypertube private tracker.
+#
+# Format: one 40-character hex info_hash per line. Lines starting with '#' and
+# blank lines are ignored. Only torrents whose info_hash appears here will be
+# tracked; everything else is rejected (this is why public trackers can't block
+# us — we control the list).
+#
+# How to get a torrent's info_hash (hex):
+#   transmission-show -m file.torrent        # prints magnet incl. btih
+#   aria2c --show-files file.torrent
+#   # or from a magnet link: the xt=urn:btih:<HASH> part (convert base32→hex if needed)
+#
+# After editing this file:
+#   make tracker-deploy   # rebuild + redeploy (cache-friendly, no C recompile)
+#   make tracker-reload   # OR live-reload the running tracker via SIGHUP
+#
+# ── permitted info_hashes ─────────────────────────────────────────────────────
+
+# AeroponicTimelapse.mp4
+6b25f52490a51ff014ac9a39674efe650c5eb562

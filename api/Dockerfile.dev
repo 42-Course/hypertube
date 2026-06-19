@@ -8,6 +8,7 @@ RUN apt-get update -qq && \
       libyaml-dev \
       git \
       curl \
+      openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
