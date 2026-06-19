@@ -14,7 +14,7 @@ function Header({ onLogout }) {
     <header className="border-b border-zinc-900 bg-zinc-950/95">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4">
         <NavLink className="text-sm font-semibold uppercase tracking-[0.2em] text-red-400" to="/movies">
-          Hypertube
+          {t('app.name')}
         </NavLink>
 
         <nav className="flex items-center gap-2">

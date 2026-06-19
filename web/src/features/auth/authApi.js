@@ -31,6 +31,53 @@ export async function login({ login, password }) {
   }
 }
 
+export async function register({ email, username, firstName, lastName, password }) {
+  const { data } = await client.post('/api/v1/users', {
+    user: {
+      email,
+      username,
+      first_name: firstName,
+      last_name: lastName,
+      password,
+      preferred_language: 'en',
+    },
+  })
+
+  return normalizeUser(data)
+}
+
+export async function updateProfile(userId, { username, email, profilePictureUrl }) {
+  const { data } = await client.patch(`/api/v1/users/${userId}`, {
+    user: {
+      username,
+      email,
+      profile_picture_url: profilePictureUrl,
+    },
+  })
+
+  return normalizeUser(data)
+}
+
+export async function requestPasswordReset(email) {
+  const { data } = await client.post('/api/v1/password', {
+    user: { email },
+  })
+
+  return data
+}
+
+export async function resetPassword({ token, password, passwordConfirmation }) {
+  const { data } = await client.patch('/api/v1/password', {
+    user: {
+      reset_password_token: token,
+      password,
+      password_confirmation: passwordConfirmation,
+    },
+  })
+
+  return data
+}
+
 // Revoke the current access token server-side (DELETE /api/v1/session).
 export async function logout() {
   await client.delete('/api/v1/session')

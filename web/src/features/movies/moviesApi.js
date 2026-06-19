@@ -8,7 +8,7 @@ function normalizeMovie(movie) {
     year: movie.year,
     rating: Number(movie.rating) || 0,
     coverUrl: movie.cover_url,
-    genre: movie.genres?.[0] || 'Unknown',
+    genre: movie.genres?.[0] || null,
     genres: movie.genres || [],
     watched: Boolean(movie.watched),
   }
@@ -21,6 +21,16 @@ function normalizeMovieDetail(movie) {
     duration: movie.duration || null,
     subtitles: movie.subtitles || [],
     commentsCount: movie.comments_count || 0,
+  }
+}
+
+function normalizeComment(comment) {
+  return {
+    id: comment.id,
+    content: comment.content,
+    createdAt: comment.created_at,
+    author: comment.user?.username || null,
+    authorId: comment.user?.id ?? null,
   }
 }
 
@@ -55,14 +65,9 @@ export async function searchMovies({ page, query, genre, year, rating, sort }) {
   }
 }
 
-function normalizeComment(comment) {
-  return {
-    id: comment.id,
-    content: comment.content,
-    createdAt: comment.created_at,
-    author: comment.user?.username || 'Unknown',
-    authorId: comment.user?.id ?? null,
-  }
+export async function getMovieDetails(movieId) {
+  const { data } = await client.get('/api/v1/movies/' + movieId)
+  return normalizeMovieDetail(data)
 }
 
 export async function getMovieComments({ movieId, page, perPage }) {
@@ -78,7 +83,10 @@ export async function getMovieComments({ movieId, page, perPage }) {
   }
 }
 
-export async function getMovieDetails(movieId) {
-  const { data } = await client.get('/api/v1/movies/' + movieId)
-  return normalizeMovieDetail(data)
+export async function createMovieComment(movieId, content) {
+  const { data } = await client.post(`/api/v1/movies/${movieId}/comments`, {
+    comment: { content },
+  })
+
+  return normalizeComment(data)
 }
