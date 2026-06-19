@@ -6,7 +6,7 @@ function MovieSearch({ value, onChange }) {
   return (
     <form className="flex flex-col gap-3 sm:flex-row" onSubmit={(event) => event.preventDefault()}>
       <label className="sr-only" htmlFor="movie-search">
-        Rechercher une video
+        {t('movies.filters.searchLabel')}
       </label>
       <input
         id="movie-search"

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { updateProfile } from '../features/auth/authApi'
 import { mockProfile } from '../features/profile/mockProfile'
 import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
@@ -11,29 +12,101 @@ function fallbackAvatar(user) {
   return `https://ui-avatars.com/api/?name=${name}&background=18181b&color=f87171&size=256`
 }
 
+function editableInputClass(isEditing) {
+  const baseClass =
+    'mt-2 w-full rounded-lg border px-4 py-3 text-sm outline-none transition'
+
+  if (isEditing) {
+    return `${baseClass} border-zinc-800 bg-zinc-950 text-white focus:border-red-400`
+  }
+
+  return `${baseClass} cursor-not-allowed border-zinc-800 bg-zinc-950/60 text-zinc-500`
+}
+
+function EditableLabel({ children, isEditing, onEdit, editLabel }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm font-medium text-zinc-300">{children}</span>
+      <button
+        className="grid h-7 w-7 place-items-center rounded-full border border-red-400/40 bg-red-500/10 text-xs text-red-300 transition hover:border-red-300 hover:text-white disabled:cursor-default disabled:border-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-500"
+        type="button"
+        aria-label={editLabel}
+        disabled={isEditing}
+        onClick={onEdit}
+      >
+        ✎
+      </button>
+    </div>
+  )
+}
+
 function ProfilePage() {
   const { language, setLanguage, t } = useI18n()
-  const { user } = useAuth()
+  const { user, refresh } = useAuth()
+  const usernameInputRef = useRef(null)
+  const emailInputRef = useRef(null)
+  const avatarInputRef = useRef(null)
+  const [form, setForm] = useState({
+    username: user.username || '',
+    email: user.email || '',
+    profilePictureUrl: user.profilePictureUrl || '',
+  })
   const [avatarPreview, setAvatarPreview] = useState(
     user.profilePictureUrl || fallbackAvatar(user),
   )
-  const fileInputRef = useRef(null)
+  const [editingFields, setEditingFields] = useState({
+    username: false,
+    email: false,
+    profilePictureUrl: false,
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   // History has no API endpoint yet; keep a placeholder list for the layout.
   const watchedMovies = mockProfile.watchedMovies
 
-  function handleAvatarClick() {
-    fileInputRef.current?.click()
+  function updateField(name, value) {
+    setForm((currentForm) => ({ ...currentForm, [name]: value }))
+
+    if (name === 'profilePictureUrl') {
+      setAvatarPreview(value || fallbackAvatar(user))
+    }
   }
 
-  function handleAvatarChange(event) {
-    const file = event.target.files?.[0]
+  function unlockField(name, inputRef) {
+    setEditingFields((currentFields) => ({
+      ...currentFields,
+      [name]: true,
+    }))
+    window.requestAnimationFrame(() => inputRef.current?.focus())
+  }
 
-    if (!file) {
-      return
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+    setSubmitting(true)
+
+    try {
+      await updateProfile(user.id, form)
+      await refresh()
+      setEditingFields({
+        username: false,
+        email: false,
+        profilePictureUrl: false,
+      })
+      setSuccess(t('profile.saveSuccess'))
+    } catch (err) {
+      const errors = err.response?.data?.errors
+      setError(
+        Array.isArray(errors)
+          ? errors.join(' ')
+          : t('profile.saveError'),
+      )
+    } finally {
+      setSubmitting(false)
     }
-
-    setAvatarPreview(URL.createObjectURL(file))
   }
 
   return (
@@ -45,26 +118,19 @@ function ProfilePage() {
               <img
                 className="h-28 w-28 rounded-full border-4 border-zinc-800 object-cover"
                 src={avatarPreview}
-                alt={`Avatar de ${user.username}`}
+                alt={t('profile.avatarAlt', { username: user.username })}
               />
               <button
-                className="absolute bottom-1 right-1 grid h-9 w-9 place-items-center rounded-full border border-zinc-700 bg-zinc-950 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-zinc-900"
+                className="absolute bottom-1 right-1 grid h-9 w-9 place-items-center rounded-full border border-red-400/50 bg-zinc-950 text-sm font-semibold text-red-200 transition hover:border-red-300 hover:text-white"
                 type="button"
                 aria-label={t('profile.changeAvatar')}
-                onClick={handleAvatarClick}
+                onClick={() => unlockField('profilePictureUrl', avatarInputRef)}
               >
                 ✎
               </button>
-              <input
-                ref={fileInputRef}
-                className="hidden"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handleAvatarChange}
-              />
             </div>
             <p className="mt-3 text-xs text-zinc-500">
-              {t('profile.avatarFormats')}
+              {t('profile.avatarEditableHint')}
             </p>
             <h1 className="mt-5 text-2xl font-semibold text-white">
               {user.firstName} {user.lastName}
@@ -105,52 +171,109 @@ function ProfilePage() {
                 </h2>
               </div>
               <button
-                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400"
-                type="button"
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                type="submit"
+                form="profile-form"
+                disabled={submitting}
               >
-                {t('profile.save')}
+                {submitting ? t('profile.saving') : t('profile.save')}
               </button>
             </div>
 
-            <form className="mt-6 grid gap-5 md:grid-cols-2">
+            {error && (
+              <p
+                className="mt-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+                role="alert"
+              >
+                {error}
+              </p>
+            )}
+
+            {success && (
+              <p
+                className="mt-6 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
+                role="status"
+              >
+                {success}
+              </p>
+            )}
+
+            <form id="profile-form" className="mt-6 grid gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
               <label className="block">
                 <span className="text-sm font-medium text-zinc-300">{t('profile.firstName')}</span>
                 <input
-                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  defaultValue={user.firstName}
+                  className="mt-2 w-full cursor-not-allowed rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-500 outline-none"
+                  value={user.firstName || ''}
                   type="text"
+                  disabled
                 />
+                <p className="mt-2 text-xs text-zinc-600">{t('profile.notEditable')}</p>
               </label>
               <label className="block">
                 <span className="text-sm font-medium text-zinc-300">{t('profile.lastName')}</span>
                 <input
-                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  defaultValue={user.lastName}
+                  className="mt-2 w-full cursor-not-allowed rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-500 outline-none"
+                  value={user.lastName || ''}
+                  type="text"
+                  disabled
+                />
+                <p className="mt-2 text-xs text-zinc-600">{t('profile.notEditable')}</p>
+              </label>
+              <label className="block">
+                <EditableLabel
+                  editLabel={t('profile.editUsername')}
+                  isEditing={editingFields.username}
+                  onEdit={() => unlockField('username', usernameInputRef)}
+                >
+                  {t('profile.username')}
+                </EditableLabel>
+                <input
+                  ref={usernameInputRef}
+                  className={editableInputClass(editingFields.username)}
+                  value={form.username}
+                  onChange={(event) => updateField('username', event.target.value)}
+                  readOnly={!editingFields.username}
                   type="text"
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-zinc-300">{t('profile.username')}</span>
+                <EditableLabel
+                  editLabel={t('profile.editEmail')}
+                  isEditing={editingFields.email}
+                  onEdit={() => unlockField('email', emailInputRef)}
+                >
+                  {t('profile.privateEmail')}
+                </EditableLabel>
                 <input
-                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  defaultValue={user.username}
-                  type="text"
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium text-zinc-300">{t('profile.privateEmail')}</span>
-                <input
-                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  defaultValue={user.email}
+                  ref={emailInputRef}
+                  className={editableInputClass(editingFields.email)}
+                  value={form.email}
+                  onChange={(event) => updateField('email', event.target.value)}
+                  readOnly={!editingFields.email}
                   type="email"
                 />
               </label>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 md:col-span-2">
-                <p className="text-sm font-medium text-zinc-300">{t('profile.avatar')}</p>
+              <label className="block md:col-span-2">
+                <EditableLabel
+                  editLabel={t('profile.editAvatar')}
+                  isEditing={editingFields.profilePictureUrl}
+                  onEdit={() => unlockField('profilePictureUrl', avatarInputRef)}
+                >
+                  {t('profile.avatar')}
+                </EditableLabel>
+                <input
+                  ref={avatarInputRef}
+                  className={editableInputClass(editingFields.profilePictureUrl)}
+                  value={form.profilePictureUrl}
+                  onChange={(event) => updateField('profilePictureUrl', event.target.value)}
+                  readOnly={!editingFields.profilePictureUrl}
+                  type="url"
+                  placeholder={t('profile.avatarPlaceholder')}
+                />
                 <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  {t('profile.avatarHelp')}
+                  {t('profile.avatarUrlHelp')}
                 </p>
-              </div>
+              </label>
             </form>
           </section>
 
@@ -166,8 +289,8 @@ function ProfilePage() {
                 value={language}
                 onChange={(event) => setLanguage(event.target.value)}
               >
-                <option value="en">English</option>
-                <option value="fr">Francais</option>
+                <option value="en">{t('profile.languageOptions.en')}</option>
+                <option value="fr">{t('profile.languageOptions.fr')}</option>
               </select>
             </label>
           </section>
@@ -192,7 +315,7 @@ function ProfilePage() {
             <article className="rounded-xl border border-zinc-800 bg-zinc-950 p-4" key={movie.id}>
               <h3 className="font-semibold text-white">{movie.title}</h3>
               <p className="mt-2 text-sm text-zinc-400">
-                {movie.year} · IMDb {movie.rating}
+                {movie.year} · {t('common.imdb')} {movie.rating}
               </p>
             </article>
           ))}

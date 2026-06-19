@@ -11,7 +11,7 @@ function MovieCard({ movie }) {
           <img
             className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
             src={movie.coverUrl}
-            alt={`Affiche de ${movie.title}`}
+            alt={t('movies.card.posterAlt', { title: movie.title })}
             loading="lazy"
           />
         ) : (
@@ -42,7 +42,7 @@ function MovieCard({ movie }) {
 
         <div className="flex items-center justify-between">
           <span className="rounded-md bg-amber-400/15 px-2 py-1 text-sm font-semibold text-amber-300">
-            IMDb {movie.rating}
+            {t('common.imdb')} {movie.rating}
           </span>
           <span className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm font-medium text-zinc-200 transition group-hover:border-red-400 group-hover:text-white">
             {t('movies.card.view')}

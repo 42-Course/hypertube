@@ -2,10 +2,12 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { saveAccessToken } from '../features/auth/authStorage'
 import { useAuth } from '../features/auth/useAuth'
+import { useI18n } from '../i18n/useI18n'
 
 function AuthCallbackPage() {
   const navigate = useNavigate()
   const { refresh } = useAuth()
+  const { t } = useI18n()
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.slice(1))
@@ -27,13 +29,13 @@ function AuthCallbackPage() {
     <main className="grid min-h-screen place-items-center bg-zinc-950 px-6 text-zinc-100">
       <section className="text-center">
         <p className="text-sm font-medium uppercase tracking-[0.2em] text-red-400">
-          Hypertube
+          {t('app.name')}
         </p>
         <h1 className="mt-4 text-3xl font-semibold text-white">
-          Connexion en cours
+          {t('auth.callbackTitle')}
         </h1>
         <p className="mt-3 text-sm text-zinc-400">
-          Nous finalisons ton authentification.
+          {t('auth.callbackDescription')}
         </p>
       </section>
     </main>

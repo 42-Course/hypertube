@@ -4,12 +4,12 @@ function MovieFilters({ filters, onFiltersChange, sort, onSortChange }) {
   const { t } = useI18n()
   const genres = [
     { label: t('movies.filters.allGenres'), value: 'all' },
-    { label: 'Action', value: 'Action' },
-    { label: 'Drama', value: 'Drama' },
-    { label: 'Science fiction', value: 'Science fiction' },
-    { label: 'Thriller', value: 'Thriller' },
-    { label: 'Adventure', value: 'Adventure' },
-    { label: 'Animation', value: 'Animation' },
+    { label: t('movies.filters.genres.action'), value: 'Action' },
+    { label: t('movies.filters.genres.drama'), value: 'Drama' },
+    { label: t('movies.filters.genres.scienceFiction'), value: 'Science fiction' },
+    { label: t('movies.filters.genres.thriller'), value: 'Thriller' },
+    { label: t('movies.filters.genres.adventure'), value: 'Adventure' },
+    { label: t('movies.filters.genres.animation'), value: 'Animation' },
   ]
   const years = [
     { label: t('movies.filters.allYears'), value: 'all' },
