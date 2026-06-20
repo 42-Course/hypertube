@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { fortyTwoLoginUrl, login as loginRequest } from '../features/auth/authApi'
+import {
+  fortyTwoLoginUrl,
+  googleLoginUrl,
+  login as loginRequest,
+} from '../features/auth/authApi'
 import { saveAccessToken } from '../features/auth/authStorage'
 import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
@@ -14,6 +18,9 @@ function LoginPage() {
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [success] = useState(() =>
+    searchParams.get('registered') === '1' ? t('auth.login.accountCreated') : '',
+  )
   const [error, setError] = useState(() => {
     const oauthError = searchParams.get('error')
 
@@ -57,6 +64,10 @@ function LoginPage() {
     window.location.href = fortyTwoLoginUrl()
   }
 
+  function handleGoogleLogin() {
+    window.location.href = googleLoginUrl()
+  }
+
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
       <section className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-md flex-col justify-center">
@@ -74,6 +85,15 @@ function LoginPage() {
             role="alert"
           >
             {error}
+          </p>
+        )}
+
+        {success && (
+          <p
+            className="mt-6 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
+            role="status"
+          >
+            {success}
           </p>
         )}
 
@@ -134,13 +154,23 @@ function LoginPage() {
           <div className="h-px flex-1 bg-zinc-800" />
         </div>
 
-        <button
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-zinc-900"
-          type="button"
-          onClick={handleFortyTwoLogin}
-        >
-          {t('auth.login.continueWithFortyTwo')}
-        </button>
+        <div className="mb-10 space-y-3">
+          <button
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-zinc-900"
+            type="button"
+            onClick={handleFortyTwoLogin}
+          >
+            {t('auth.login.continueWithFortyTwo')}
+          </button>
+
+          <button
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-zinc-900"
+            type="button"
+            onClick={handleGoogleLogin}
+          >
+            {t('auth.login.continueWithGoogle')}
+          </button>
+        </div>
 
         <p className="mt-6 text-center text-sm text-zinc-400">
           {t('auth.login.registerPrompt')}{' '}

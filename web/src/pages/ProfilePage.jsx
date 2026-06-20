@@ -1,5 +1,14 @@
 import { useRef, useState } from 'react'
 import { updateProfile } from '../features/auth/authApi'
+<<<<<<< HEAD
+=======
+import { mockProfile } from '../features/profile/mockProfile'
+import {
+  getMoviesPerPage,
+  MOVIES_PER_PAGE_OPTIONS,
+  saveMoviesPerPage,
+} from '../features/settings/settingsStorage'
+>>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
 import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 
@@ -61,6 +70,7 @@ function ProfilePage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [moviesPerPage, setMoviesPerPage] = useState(getMoviesPerPage)
 
   // History has no API endpoint yet; keep a placeholder list for the layout.
   const watchedMovies = []
@@ -106,6 +116,10 @@ function ProfilePage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  function handleMoviesPerPageChange(value) {
+    setMoviesPerPage(saveMoviesPerPage(value))
   }
 
   return (
@@ -279,19 +293,42 @@ function ProfilePage() {
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6">
             <h2 className="text-2xl font-semibold text-white">{t('profile.preferences')}</h2>
             <p className="mt-2 text-sm text-zinc-400">
-              {t('profile.languageHelp')}
+              {t('profile.preferencesHelp')}
             </p>
-            <label className="mt-5 block max-w-sm">
-              <span className="text-sm font-medium text-zinc-300">{t('profile.preferredLanguage')}</span>
-              <select
-                className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                value={language}
-                onChange={(event) => setLanguage(event.target.value)}
-              >
-                <option value="en">{t('profile.languageOptions.en')}</option>
-                <option value="fr">{t('profile.languageOptions.fr')}</option>
-              </select>
-            </label>
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-zinc-300">{t('profile.preferredLanguage')}</span>
+                <select
+                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
+                  value={language}
+                  onChange={(event) => setLanguage(event.target.value)}
+                >
+                  <option value="en">{t('profile.languageOptions.en')}</option>
+                  <option value="fr">{t('profile.languageOptions.fr')}</option>
+                </select>
+                <p className="mt-2 text-sm leading-6 text-zinc-500">
+                  {t('profile.languageHelp')}
+                </p>
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-zinc-300">{t('profile.moviesPerPage')}</span>
+                <select
+                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
+                  value={moviesPerPage}
+                  onChange={(event) => handleMoviesPerPageChange(event.target.value)}
+                >
+                  {MOVIES_PER_PAGE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {t('profile.moviesPerPageOption', { count: option })}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-sm leading-6 text-zinc-500">
+                  {t('profile.moviesPerPageHelp')}
+                </p>
+              </label>
+            </div>
           </section>
         </div>
       </div>

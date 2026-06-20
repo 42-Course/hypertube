@@ -3,15 +3,43 @@ import MovieCard from '../features/movies/MovieCard'
 import MovieFilters from '../features/movies/MovieFilters'
 import MovieSearch from '../features/movies/MovieSearch'
 import { searchMovies } from '../features/movies/moviesApi'
+<<<<<<< HEAD
 import { useI18n } from '../i18n/useI18n'
 
 const FIRST_PAGE = 1
+=======
+import { mockMovies } from '../features/movies/mockMovies'
+import { getMoviesPerPage } from '../features/settings/settingsStorage'
+import { useI18n } from '../i18n/useI18n'
+
+const FIRST_PAGE = 1
+const FORCE_MOCK_MOVIES = false
+const SEARCH_DEBOUNCE_MS = 500
+const SKELETON_CARD_COUNT = 8
+
+function MovieCardSkeleton() {
+  return (
+    <article className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/70">
+      <div className="aspect-[2/3] animate-pulse bg-zinc-800/70" />
+      <div className="space-y-3 p-4">
+        <div className="h-4 w-4/5 animate-pulse rounded bg-zinc-800" />
+        <div className="h-3 w-2/5 animate-pulse rounded bg-zinc-800" />
+        <div className="flex items-center justify-between pt-1">
+          <div className="h-7 w-16 animate-pulse rounded bg-zinc-800" />
+          <div className="h-8 w-20 animate-pulse rounded bg-zinc-800" />
+        </div>
+      </div>
+    </article>
+  )
+}
+>>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
 
 function MoviesPage() {
   const { t } = useI18n()
   const loadMoreRef = useRef(null)
   const requestIdRef = useRef(0)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [filters, setFilters] = useState({
     genre: 'all',
     year: 'all',
@@ -19,22 +47,54 @@ function MoviesPage() {
   })
   const [sort, setSort] = useState('popularity')
   const [movies, setMovies] = useState([])
+  const [moviesPerPage] = useState(getMoviesPerPage)
   const [page, setPage] = useState(FIRST_PAGE)
   const [hasMoreMovies, setHasMoreMovies] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
+<<<<<<< HEAD
   const watchedCount = movies.filter((movie) => movie.watched).length
+=======
+  const [loadingMode, setLoadingMode] = useState(null)
+  const [isUsingMockFallback, setIsUsingMockFallback] = useState(false)
+  const [searchSubmitCount, setSearchSubmitCount] = useState(0)
+  const loadedMoviesCount = movies.length
+  const watchedMoviesCount = movies.filter((movie) => movie.watched).length
+>>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
   const sortLabel = t(`movies.sort.${sort}`)
+  const isReplacingMovies = isLoading && loadingMode === 'replace'
+  const isAppendingMovies = isLoading && loadingMode === 'append'
+  const activeSearchQuery = debouncedSearchQuery.trim()
+  const hasSearchQuery = activeSearchQuery.length > 0
 
   const loadMovies = useCallback(
     async ({ nextPage, replace }) => {
       const requestId = requestIdRef.current + 1
       requestIdRef.current = requestId
       setIsLoading(true)
+      setLoadingMode(replace ? 'replace' : 'append')
 
+      if (replace) {
+        setMovies([])
+      }
+
+<<<<<<< HEAD
+=======
+      if (FORCE_MOCK_MOVIES) {
+        setMovies(mockMovies)
+        setPage(FIRST_PAGE)
+        setHasMoreMovies(false)
+        setIsUsingMockFallback(true)
+        setIsLoading(false)
+        setLoadingMode(null)
+        return
+      }
+
+>>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
       try {
         const result = await searchMovies({
           page: nextPage,
-          query: searchQuery,
+          perPage: moviesPerPage,
+          query: activeSearchQuery,
           genre: filters.genre,
           year: filters.year,
           rating: filters.rating,
@@ -49,7 +109,12 @@ function MoviesPage() {
           replace ? result.movies : [...currentMovies, ...result.movies],
         )
         setPage(result.page)
+<<<<<<< HEAD
         setHasMoreMovies(result.movies.length > 0)
+=======
+        setHasMoreMovies(result.hasMore)
+        setIsUsingMockFallback(false)
+>>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
       } catch {
         if (requestId !== requestIdRef.current) {
           return
@@ -60,11 +125,27 @@ function MoviesPage() {
       } finally {
         if (requestId === requestIdRef.current) {
           setIsLoading(false)
+          setLoadingMode(null)
         }
       }
     },
-    [filters.genre, filters.rating, filters.year, searchQuery, sort],
+    [
+      activeSearchQuery,
+      filters.genre,
+      filters.rating,
+      filters.year,
+      moviesPerPage,
+      sort,
+    ],
   )
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery)
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => window.clearTimeout(timerId)
+  }, [searchQuery])
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -72,10 +153,15 @@ function MoviesPage() {
     }, 0)
 
     return () => window.clearTimeout(timerId)
-  }, [loadMovies])
+  }, [loadMovies, searchSubmitCount])
 
   function handleSearchChange(nextSearchQuery) {
     setSearchQuery(nextSearchQuery)
+  }
+
+  function handleSearchSubmit() {
+    setDebouncedSearchQuery(searchQuery)
+    setSearchSubmitCount((currentCount) => currentCount + 1)
   }
 
   function handleFiltersChange(nextFilters) {
@@ -125,11 +211,11 @@ function MoviesPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-              <p className="text-2xl font-semibold text-white">{movies.length}</p>
-              <p className="mt-1 text-sm text-zinc-500">{t('movies.videos')}</p>
+              <p className="text-2xl font-semibold text-white">{loadedMoviesCount}</p>
+              <p className="mt-1 text-sm text-zinc-500">{t('movies.loadedVideos')}</p>
             </div>
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-              <p className="text-2xl font-semibold text-white">{watchedCount}</p>
+              <p className="text-2xl font-semibold text-white">{watchedMoviesCount}</p>
               <p className="mt-1 text-sm text-zinc-500">{t('movies.watched')}</p>
             </div>
           </div>
@@ -137,7 +223,12 @@ function MoviesPage() {
       </section>
 
       <section className="space-y-4">
-        <MovieSearch value={searchQuery} onChange={handleSearchChange} />
+        <MovieSearch
+          isSearching={isReplacingMovies}
+          value={searchQuery}
+          onChange={handleSearchChange}
+          onSubmit={handleSearchSubmit}
+        />
         <MovieFilters
           filters={filters}
           onFiltersChange={handleFiltersChange}
@@ -152,7 +243,15 @@ function MoviesPage() {
             <h2 className="text-2xl font-semibold text-white">{t('movies.popular')}</h2>
             <p className="mt-1 text-sm text-zinc-500">
               {t('movies.resultsCount', { count: movies.length })} ·{' '}
+<<<<<<< HEAD
               {movies.length ? t('movies.noMoviesReturned') : t('movies.apiNotice')}
+=======
+              {isUsingMockFallback
+                ? t('movies.mockNotice')
+                : hasSearchQuery
+                  ? t('movies.discoveryNotice')
+                  : t('movies.popularNotice')}
+>>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
             </p>
           </div>
           <p className="text-sm text-zinc-500">
@@ -160,20 +259,42 @@ function MoviesPage() {
           </p>
         </div>
 
-        {movies.length === 0 && !isLoading ? (
+        {isReplacingMovies ? (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
+              <MovieCardSkeleton key={index} />
+            ))}
+          </div>
+        ) : movies.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/40 p-10 text-center">
-            <h3 className="text-xl font-semibold text-white">{t('movies.emptyTitle')}</h3>
-            <p className="mt-2 text-sm text-zinc-500">{t('movies.emptyDescription')}</p>
+            <h3 className="text-xl font-semibold text-white">
+              {hasSearchQuery
+                ? t('movies.emptySearchTitle')
+                : t('movies.emptyPopularTitle')}
+            </h3>
+            <p className="mt-2 text-sm text-zinc-500">
+              {hasSearchQuery
+                ? t('movies.emptySearchDescription')
+                : t('movies.emptyPopularDescription')}
+            </p>
           </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {movies.map((movie) => (
               <MovieCard key={movie.id} movie={movie} />
             ))}
+            {isAppendingMovies &&
+              Array.from({ length: 4 }, (_, index) => (
+                <MovieCardSkeleton key={`append-skeleton-${index}`} />
+              ))}
           </div>
         )}
 
+<<<<<<< HEAD
         {(hasMoreMovies || isLoading) && (
+=======
+        {hasMoreMovies && !isLoading && !isUsingMockFallback && (
+>>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
           <div ref={loadMoreRef} className="mt-8 flex justify-center">
             <div className="rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-400">
               {t('movies.loadingMore')}

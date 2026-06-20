@@ -7,6 +7,7 @@ import LoginPage from '../pages/LoginPage'
 import MovieDetailsPage from '../pages/MovieDetailsPage'
 import MoviesPage from '../pages/MoviesPage'
 import ProfilePage from '../pages/ProfilePage'
+import PublicProfilePage from '../pages/PublicProfilePage'
 import RegisterPage from '../pages/RegisterPage'
 import ResetPasswordPage from '../pages/ResetPasswordPage'
 
@@ -45,6 +46,16 @@ function AppRouter() {
           <ProtectedRoute>
             <AppLayout>
               <ProfilePage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users/:userId"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PublicProfilePage />
             </AppLayout>
           </ProtectedRoute>
         }

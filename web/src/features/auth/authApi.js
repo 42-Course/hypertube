@@ -19,6 +19,11 @@ export async function fetchCurrentUser() {
   return normalizeUser(data)
 }
 
+export async function fetchPublicUser(userId) {
+  const { data } = await client.get(`/api/v1/users/${userId}`)
+  return normalizeUser(data)
+}
+
 // Email/username + password login. No OAuth client_id/client_secret needed:
 // the backend mints a first-party token server-side (POST /api/v1/session).
 export async function login({ login, password }) {
@@ -83,8 +88,17 @@ export async function logout() {
   await client.delete('/api/v1/session')
 }
 
+function providerLoginUrl(provider) {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+  return `${apiUrl}/users/auth/${provider}`
+}
+
 // Full-page redirect that starts the 42 (Intra) OAuth flow.
 export function fortyTwoLoginUrl() {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-  return `${apiUrl}/users/auth/fortytwo`
+  return providerLoginUrl('fortytwo')
+}
+
+// Full-page redirect that starts the Google OAuth flow.
+export function googleLoginUrl() {
+  return providerLoginUrl('google_oauth2')
 }

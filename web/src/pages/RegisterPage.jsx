@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../features/auth/authApi'
 import { useI18n } from '../i18n/useI18n'
 
 function RegisterPage() {
+  const navigate = useNavigate()
   const { t } = useI18n()
   const [form, setForm] = useState({
     firstName: '',
@@ -14,7 +15,6 @@ function RegisterPage() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
 
   function updateField(name, value) {
     setForm((currentForm) => ({ ...currentForm, [name]: value }))
@@ -23,19 +23,11 @@ function RegisterPage() {
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
-    setSuccess('')
     setSubmitting(true)
 
     try {
       await register(form)
-      setSuccess(t('auth.register.success'))
-      setForm({
-        firstName: '',
-        lastName: '',
-        username: '',
-        email: '',
-        password: '',
-      })
+      navigate('/login?registered=1', { replace: true })
     } catch (err) {
       const errors = err.response?.data?.errors
       setError(
@@ -65,15 +57,6 @@ function RegisterPage() {
             role="alert"
           >
             {error}
-          </p>
-        )}
-
-        {success && (
-          <p
-            className="mt-6 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
-            role="status"
-          >
-            {success}
           </p>
         )}
 
@@ -157,7 +140,7 @@ function RegisterPage() {
           </label>
 
           <button
-            className="w-full rounded-lg bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-400"
+            className="mb-10 w-full rounded-lg bg-red-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-400"
             type="submit"
             disabled={submitting}
           >
