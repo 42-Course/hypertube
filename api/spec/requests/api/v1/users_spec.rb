@@ -136,26 +136,36 @@ RSpec.describe "Users API", type: :request do
                   "multipart/form-data so a profile image (`avatar`) can be " \
                   "uploaded; the image is stored via Active Storage and its " \
                   "URL is returned in `profile_picture_url`."
-      # Single multipart object so the avatar shows up as a binary upload in the
-      # docs. `getter:` keeps the form field name "user" (-> params[:user]) while
-      # the value comes from `let(:user_payload)`, avoiding a clash with the
-      # top-level `let(:user)` (the authenticated account).
-      parameter name: :user, in: :formData, getter: :user_payload, required: false,
-                schema: {
-                  type: :object,
-                  properties: {
-                    username:           { type: :string },
-                    first_name:         { type: :string },
-                    last_name:          { type: :string },
-                    preferred_language: { type: :string },
-                    avatar:             { type: :string, format: :binary,
-                                          description: "Profile image file" }
-                  }
-                }
+      # Doc-only: rswag builds the requestBody from the *first* form param's
+      # schema, so this object describes the whole multipart body in Swagger.
+      # No `let` is defined for it, so it is never sent on the wire; the flat
+      # fields below carry the actual request values.
+      parameter name: :profile, in: :formData, required: false, schema: {
+        type: :object,
+        properties: {
+          username:           { type: :string },
+          first_name:         { type: :string },
+          last_name:          { type: :string },
+          preferred_language: { type: :string },
+          avatar:             { type: :string, format: :binary,
+                                description: "Profile image file" }
+        }
+      }
+
+      # Flat multipart fields (not wrapped in `user[...]`), matching how a browser
+      # form / the frontend submits the profile editor. Each field is optional;
+      # rswag only sends the ones an example defines a `let` for.
+      parameter name: :username,           in: :formData, schema: { type: :string }, required: false
+      parameter name: :first_name,         in: :formData, schema: { type: :string }, required: false
+      parameter name: :last_name,          in: :formData, schema: { type: :string }, required: false
+      parameter name: :preferred_language, in: :formData, schema: { type: :string }, required: false
+      parameter name: :avatar,             in: :formData, required: false,
+                                           schema: { type: :string, format: :binary },
+                                           description: "Profile image file"
 
       response "200", "user updated" do
-        let(:id)           { user.id }
-        let(:user_payload) { { username: "newname123" } }
+        let(:id)       { user.id }
+        let(:username) { "newname123" }
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data["username"]).to eq("newname123")
@@ -164,10 +174,10 @@ RSpec.describe "Users API", type: :request do
 
       response "200", "avatar uploaded" do
         let(:id) { user.id }
-        let(:user_payload) do
-          { avatar: Rack::Test::UploadedFile.new(
+        let(:avatar) do
+          Rack::Test::UploadedFile.new(
             Rails.root.join("spec/fixtures/files/avatar.png"), "image/png"
-          ) }
+          )
         end
         run_test! do |response|
           data = JSON.parse(response.body)
@@ -177,15 +187,15 @@ RSpec.describe "Users API", type: :request do
       end
 
       response "403", "forbidden cannot update another user" do
-        let(:other)        { create(:user) }
-        let(:id)           { other.id }
-        let(:user_payload) { { username: "hacked" } }
+        let(:other)    { create(:user) }
+        let(:id)       { other.id }
+        let(:username) { "hacked" }
         run_test!
       end
 
       response "422", "invalid update" do
-        let(:id)           { user.id }
-        let(:user_payload) { { username: "a" } } # too short / fails validation
+        let(:id)       { user.id }
+        let(:username) { "a" } # too short / fails validation
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data).to have_key("errors")
