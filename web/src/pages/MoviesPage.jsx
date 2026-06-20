@@ -3,17 +3,10 @@ import MovieCard from '../features/movies/MovieCard'
 import MovieFilters from '../features/movies/MovieFilters'
 import MovieSearch from '../features/movies/MovieSearch'
 import { searchMovies } from '../features/movies/moviesApi'
-<<<<<<< HEAD
-import { useI18n } from '../i18n/useI18n'
-
-const FIRST_PAGE = 1
-=======
-import { mockMovies } from '../features/movies/mockMovies'
 import { getMoviesPerPage } from '../features/settings/settingsStorage'
 import { useI18n } from '../i18n/useI18n'
 
 const FIRST_PAGE = 1
-const FORCE_MOCK_MOVIES = false
 const SEARCH_DEBOUNCE_MS = 500
 const SKELETON_CARD_COUNT = 8
 
@@ -32,7 +25,6 @@ function MovieCardSkeleton() {
     </article>
   )
 }
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
 
 function MoviesPage() {
   const { t } = useI18n()
@@ -51,15 +43,10 @@ function MoviesPage() {
   const [page, setPage] = useState(FIRST_PAGE)
   const [hasMoreMovies, setHasMoreMovies] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
-<<<<<<< HEAD
-  const watchedCount = movies.filter((movie) => movie.watched).length
-=======
   const [loadingMode, setLoadingMode] = useState(null)
-  const [isUsingMockFallback, setIsUsingMockFallback] = useState(false)
   const [searchSubmitCount, setSearchSubmitCount] = useState(0)
   const loadedMoviesCount = movies.length
   const watchedMoviesCount = movies.filter((movie) => movie.watched).length
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
   const sortLabel = t(`movies.sort.${sort}`)
   const isReplacingMovies = isLoading && loadingMode === 'replace'
   const isAppendingMovies = isLoading && loadingMode === 'append'
@@ -77,19 +64,6 @@ function MoviesPage() {
         setMovies([])
       }
 
-<<<<<<< HEAD
-=======
-      if (FORCE_MOCK_MOVIES) {
-        setMovies(mockMovies)
-        setPage(FIRST_PAGE)
-        setHasMoreMovies(false)
-        setIsUsingMockFallback(true)
-        setIsLoading(false)
-        setLoadingMode(null)
-        return
-      }
-
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
       try {
         const result = await searchMovies({
           page: nextPage,
@@ -109,17 +83,13 @@ function MoviesPage() {
           replace ? result.movies : [...currentMovies, ...result.movies],
         )
         setPage(result.page)
-<<<<<<< HEAD
-        setHasMoreMovies(result.movies.length > 0)
-=======
         setHasMoreMovies(result.hasMore)
-        setIsUsingMockFallback(false)
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
       } catch {
         if (requestId !== requestIdRef.current) {
           return
         }
 
+        setMovies((currentMovies) => (replace ? [] : currentMovies))
         setPage(FIRST_PAGE)
         setHasMoreMovies(false)
       } finally {
@@ -243,15 +213,7 @@ function MoviesPage() {
             <h2 className="text-2xl font-semibold text-white">{t('movies.popular')}</h2>
             <p className="mt-1 text-sm text-zinc-500">
               {t('movies.resultsCount', { count: movies.length })} ·{' '}
-<<<<<<< HEAD
-              {movies.length ? t('movies.noMoviesReturned') : t('movies.apiNotice')}
-=======
-              {isUsingMockFallback
-                ? t('movies.mockNotice')
-                : hasSearchQuery
-                  ? t('movies.discoveryNotice')
-                  : t('movies.popularNotice')}
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
+              {hasSearchQuery ? t('movies.discoveryNotice') : t('movies.popularNotice')}
             </p>
           </div>
           <p className="text-sm text-zinc-500">
@@ -290,11 +252,7 @@ function MoviesPage() {
           </div>
         )}
 
-<<<<<<< HEAD
-        {(hasMoreMovies || isLoading) && (
-=======
-        {hasMoreMovies && !isLoading && !isUsingMockFallback && (
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
+        {hasMoreMovies && !isLoading && (
           <div ref={loadMoreRef} className="mt-8 flex justify-center">
             <div className="rounded-full border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-400">
               {t('movies.loadingMore')}

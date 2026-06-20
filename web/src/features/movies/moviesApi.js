@@ -29,13 +29,9 @@ function normalizeComment(comment) {
     id: comment.id,
     content: comment.content,
     createdAt: comment.created_at,
-<<<<<<< HEAD
     author: comment.user?.username || null,
-    authorId: comment.user?.id ?? null,
-=======
-    userId: comment.user?.id || comment.user_id,
-    author: comment.user?.username,
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
+    authorId: comment.user?.id ?? comment.user_id ?? null,
+    userId: comment.user?.id ?? comment.user_id ?? null,
   }
 }
 
@@ -81,10 +77,11 @@ export async function fetchMovies({ page, perPage, query, genre, year, rating, s
   }
 }
 
-<<<<<<< HEAD
 export async function getMovieDetails(movieId) {
   const { data } = await client.get('/api/v1/movies/' + movieId)
-=======
+  return normalizeMovieDetail(data)
+}
+
 export async function searchMovies({ page, perPage, query, genre, year, rating, sort }) {
   const params = buildMovieParams({ page, perPage, query, genre, year, rating, sort })
   const { data } = await client.get('/api/v1/movies/search', { params })
@@ -99,8 +96,6 @@ export async function searchMovies({ page, perPage, query, genre, year, rating, 
 
 export async function fetchMovieDetails(movieId) {
   const { data } = await client.get(`/api/v1/movies/${movieId}`)
-
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
   return normalizeMovieDetail(data)
 }
 

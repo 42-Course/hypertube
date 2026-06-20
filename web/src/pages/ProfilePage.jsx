@@ -1,14 +1,10 @@
 import { useRef, useState } from 'react'
 import { updateProfile } from '../features/auth/authApi'
-<<<<<<< HEAD
-=======
-import { mockProfile } from '../features/profile/mockProfile'
 import {
   getMoviesPerPage,
   MOVIES_PER_PAGE_OPTIONS,
   saveMoviesPerPage,
 } from '../features/settings/settingsStorage'
->>>>>>> 60819ae (feat: improve frontend auth movies and public profiles)
 import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 
