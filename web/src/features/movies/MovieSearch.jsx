@@ -1,6 +1,6 @@
 import { useI18n } from '../../i18n/useI18n'
 
-function MovieSearch({ isSearching, value, onChange, onSubmit }) {
+function MovieSearch({ isDisabled = false, isSearching, value, onChange, onSubmit }) {
   const { t } = useI18n()
 
   function handleSubmit(event) {
@@ -27,10 +27,14 @@ function MovieSearch({ isSearching, value, onChange, onSubmit }) {
         )}
       </div>
       <button
-        className="min-h-12 rounded-lg bg-red-500 px-6 text-sm font-semibold text-white transition hover:bg-red-400"
+        className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-red-500 px-6 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-70"
         type="submit"
+        disabled={isDisabled}
       >
-        {t('movies.searchButton')}
+        {isSearching && (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+        )}
+        {isSearching ? t('movies.searchingButton') : t('movies.searchButton')}
       </button>
     </form>
   )

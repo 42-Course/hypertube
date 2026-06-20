@@ -7,7 +7,6 @@ import { getMoviesPerPage } from '../features/settings/settingsStorage'
 import { useI18n } from '../i18n/useI18n'
 
 const FIRST_PAGE = 1
-const SEARCH_DEBOUNCE_MS = 500
 const SKELETON_CARD_COUNT = 8
 
 function MovieCardSkeleton() {
@@ -31,7 +30,7 @@ function MoviesPage() {
   const loadMoreRef = useRef(null)
   const requestIdRef = useRef(0)
   const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+  const [submittedSearchQuery, setSubmittedSearchQuery] = useState('')
   const [filters, setFilters] = useState({
     genre: 'all',
     year: 'all',
@@ -45,12 +44,10 @@ function MoviesPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [loadingMode, setLoadingMode] = useState(null)
   const [searchSubmitCount, setSearchSubmitCount] = useState(0)
-  const loadedMoviesCount = movies.length
-  const watchedMoviesCount = movies.filter((movie) => movie.watched).length
   const sortLabel = t(`movies.sort.${sort}`)
   const isReplacingMovies = isLoading && loadingMode === 'replace'
   const isAppendingMovies = isLoading && loadingMode === 'append'
-  const activeSearchQuery = debouncedSearchQuery.trim()
+  const activeSearchQuery = submittedSearchQuery.trim()
   const hasSearchQuery = activeSearchQuery.length > 0
 
   const loadMovies = useCallback(
@@ -111,14 +108,6 @@ function MoviesPage() {
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-    }, SEARCH_DEBOUNCE_MS)
-
-    return () => window.clearTimeout(timerId)
-  }, [searchQuery])
-
-  useEffect(() => {
-    const timerId = window.setTimeout(() => {
       loadMovies({ nextPage: FIRST_PAGE, replace: true })
     }, 0)
 
@@ -130,7 +119,7 @@ function MoviesPage() {
   }
 
   function handleSearchSubmit() {
-    setDebouncedSearchQuery(searchQuery)
+    setSubmittedSearchQuery(searchQuery)
     setSearchSubmitCount((currentCount) => currentCount + 1)
   }
 
@@ -166,7 +155,7 @@ function MoviesPage() {
   return (
     <>
       <section className="py-14">
-        <div className="grid gap-10 lg:grid-cols-[1fr_320px] lg:items-end">
+        <div className="max-w-3xl">
           <div>
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">
               {t('movies.catalog')}
@@ -174,20 +163,6 @@ function MoviesPage() {
             <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
               {t('movies.heroTitle')}
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400">
-              {t('movies.heroDescription')}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-              <p className="text-2xl font-semibold text-white">{loadedMoviesCount}</p>
-              <p className="mt-1 text-sm text-zinc-500">{t('movies.loadedVideos')}</p>
-            </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
-              <p className="text-2xl font-semibold text-white">{watchedMoviesCount}</p>
-              <p className="mt-1 text-sm text-zinc-500">{t('movies.watched')}</p>
-            </div>
           </div>
         </div>
       </section>
@@ -195,6 +170,7 @@ function MoviesPage() {
       <section className="space-y-4">
         <MovieSearch
           isSearching={isReplacingMovies}
+          isDisabled={isReplacingMovies}
           value={searchQuery}
           onChange={handleSearchChange}
           onSubmit={handleSearchSubmit}

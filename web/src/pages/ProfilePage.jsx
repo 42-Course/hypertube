@@ -50,10 +50,15 @@ function ProfilePage() {
   const usernameInputRef = useRef(null)
   const emailInputRef = useRef(null)
   const avatarInputRef = useRef(null)
+  const passwordInputRef = useRef(null)
   const [form, setForm] = useState({
     username: user.username || '',
     email: user.email || '',
     profilePictureUrl: user.profilePictureUrl || '',
+  })
+  const [passwordForm, setPasswordForm] = useState({
+    password: '',
+    passwordConfirmation: '',
   })
   const [avatarPreview, setAvatarPreview] = useState(
     user.profilePictureUrl || fallbackAvatar(user),
@@ -62,6 +67,7 @@ function ProfilePage() {
     username: false,
     email: false,
     profilePictureUrl: false,
+    password: false,
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -79,6 +85,10 @@ function ProfilePage() {
     }
   }
 
+  function updatePasswordField(name, value) {
+    setPasswordForm((currentForm) => ({ ...currentForm, [name]: value }))
+  }
+
   function unlockField(name, inputRef) {
     setEditingFields((currentFields) => ({
       ...currentFields,
@@ -93,13 +103,32 @@ function ProfilePage() {
     setSuccess('')
     setSubmitting(true)
 
+    if (
+      passwordForm.password ||
+      passwordForm.passwordConfirmation
+    ) {
+      if (passwordForm.password !== passwordForm.passwordConfirmation) {
+        setError(t('profile.passwordMismatch'))
+        setSubmitting(false)
+        return
+      }
+    }
+
     try {
-      await updateProfile(user.id, form)
+      await updateProfile(user.id, {
+        ...form,
+        password: passwordForm.password,
+      })
       await refresh()
       setEditingFields({
         username: false,
         email: false,
         profilePictureUrl: false,
+        password: false,
+      })
+      setPasswordForm({
+        password: '',
+        passwordConfirmation: '',
       })
       setSuccess(t('profile.saveSuccess'))
     } catch (err) {
@@ -138,16 +167,10 @@ function ProfilePage() {
                 ✎
               </button>
             </div>
-            <p className="mt-3 text-xs text-zinc-500">
-              {t('profile.avatarEditableHint')}
-            </p>
             <h1 className="mt-5 text-2xl font-semibold text-white">
               {user.firstName} {user.lastName}
             </h1>
             <p className="mt-1 text-sm text-red-400">@{user.username}</p>
-            <p className="mt-4 text-sm leading-6 text-zinc-400">
-              {t('profile.description')}
-            </p>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
@@ -216,7 +239,6 @@ function ProfilePage() {
                   type="text"
                   disabled
                 />
-                <p className="mt-2 text-xs text-zinc-600">{t('profile.notEditable')}</p>
               </label>
               <label className="block">
                 <span className="text-sm font-medium text-zinc-300">{t('profile.lastName')}</span>
@@ -226,7 +248,6 @@ function ProfilePage() {
                   type="text"
                   disabled
                 />
-                <p className="mt-2 text-xs text-zinc-600">{t('profile.notEditable')}</p>
               </label>
               <label className="block">
                 <EditableLabel
@@ -279,18 +300,45 @@ function ProfilePage() {
                   type="url"
                   placeholder={t('profile.avatarPlaceholder')}
                 />
-                <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  {t('profile.avatarUrlHelp')}
-                </p>
               </label>
+
+              <div className="md:col-span-2">
+                <EditableLabel
+                  editLabel={t('profile.editPassword')}
+                  isEditing={editingFields.password}
+                  onEdit={() => unlockField('password', passwordInputRef)}
+                >
+                  {t('profile.password')}
+                </EditableLabel>
+                <div className="mt-2 grid gap-4 md:grid-cols-2">
+                  <input
+                    ref={passwordInputRef}
+                    className={editableInputClass(editingFields.password)}
+                    value={passwordForm.password}
+                    onChange={(event) => updatePasswordField('password', event.target.value)}
+                    readOnly={!editingFields.password}
+                    type="password"
+                    placeholder={t('profile.newPassword')}
+                    autoComplete="new-password"
+                  />
+                  <input
+                    className={editableInputClass(editingFields.password)}
+                    value={passwordForm.passwordConfirmation}
+                    onChange={(event) =>
+                      updatePasswordField('passwordConfirmation', event.target.value)
+                    }
+                    readOnly={!editingFields.password}
+                    type="password"
+                    placeholder={t('profile.confirmPassword')}
+                    autoComplete="new-password"
+                  />
+                </div>
+              </div>
             </form>
           </section>
 
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-6">
             <h2 className="text-2xl font-semibold text-white">{t('profile.preferences')}</h2>
-            <p className="mt-2 text-sm text-zinc-400">
-              {t('profile.preferencesHelp')}
-            </p>
             <div className="mt-5 grid gap-5 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-zinc-300">{t('profile.preferredLanguage')}</span>
@@ -302,9 +350,6 @@ function ProfilePage() {
                   <option value="en">{t('profile.languageOptions.en')}</option>
                   <option value="fr">{t('profile.languageOptions.fr')}</option>
                 </select>
-                <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  {t('profile.languageHelp')}
-                </p>
               </label>
 
               <label className="block">
@@ -320,9 +365,6 @@ function ProfilePage() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  {t('profile.moviesPerPageHelp')}
-                </p>
               </label>
             </div>
           </section>
@@ -337,9 +379,6 @@ function ProfilePage() {
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-white">{t('profile.historyTitle')}</h2>
           </div>
-          <p className="text-sm text-zinc-500">
-            {t('profile.historyVisibility')}
-          </p>
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-3">

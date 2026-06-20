@@ -105,9 +105,6 @@ function PublicProfilePage() {
           <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">
             {profile.username}
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-zinc-400">
-            {t('publicProfile.description')}
-          </p>
 
           <dl className="mt-8 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 text-left">
