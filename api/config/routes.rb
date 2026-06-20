@@ -17,7 +17,10 @@ Rails.application.routes.draw do
 
       get "me", to: "users#me"
 
-      resources :users, only: %i[index show update create]
+      resources :users, only: %i[index show update create] do
+        # A user's watched movies (paginated).
+        get :movies, on: :member
+      end
 
       resources :movies, only: %i[index show] do
         # Discovery against the external sources (TMDb + Prowlarr); /movies

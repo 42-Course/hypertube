@@ -49,6 +49,11 @@ Rails.application.configure do
     }
   }
 
+  # Store uploaded files on the local disk (config/storage.yml). The disk root
+  # (/rails/storage) is backed by a persistent Kamal volume (see config/deploy.yml)
+  # so user avatars survive container redeploys.
+  config.active_storage.service = :local
+
   # Replace the default in-process and non-durable queuing backend for Active Job.
   # config.active_job.queue_adapter = :resque
 

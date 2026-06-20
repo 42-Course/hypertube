@@ -9,10 +9,23 @@ class User < ApplicationRecord
   has_many :watch_histories, dependent: :destroy
   has_many :watched_movies, through: :watch_histories, source: :movie
 
+  # Uploaded profile image. When attached it takes precedence over the
+  # profile_picture_url string column (which still holds external OAuth avatars).
+  has_one_attached :avatar
+
   validates :username,   presence: true, uniqueness: { case_sensitive: false },
                          format: { with: /\A[a-zA-Z0-9_]+\z/ }, length: { minimum: 3 }
   validates :first_name, presence: true
   validates :last_name,  presence: true
+
+  # Prefer the uploaded avatar (served via Active Storage) over the external
+  # OAuth image stored in the string column. Returns an absolute URL so API
+  # clients (frontend) can use it directly.
+  def profile_picture_url
+    return self[:profile_picture_url] unless avatar.attached?
+
+    api_base_url + Rails.application.routes.url_helpers.rails_blob_path(avatar, only_path: true)
+  end
 
   def self.from_omniauth(auth)
     where(provider: auth.provider, uid: auth.uid).first_or_create do |user|
@@ -37,5 +50,13 @@ class User < ApplicationRecord
       candidate = "#{base}_#{counter}"
     end
     candidate
+  end
+
+  private
+
+  # Base for absolute Active Storage URLs. In production this is the public API
+  # host; falls back to localhost in development/test.
+  def api_base_url
+    ENV.fetch("API_URL", "http://localhost:3000").chomp("/")
   end
 end

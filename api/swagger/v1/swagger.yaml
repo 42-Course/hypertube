@@ -528,29 +528,69 @@ paths:
       - Users
       security:
       - oauth2: []
+      description: Update the authenticated user's own profile. Sent as multipart/form-data
+        so a profile image (`avatar`) can be uploaded; the image is stored via Active
+        Storage and its URL is returned in `profile_picture_url`.
       parameters: []
       responses:
         '200':
-          description: user updated
+          description: avatar uploaded
         '403':
           description: forbidden cannot update another user
         '422':
           description: invalid update
       requestBody:
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
               properties:
-                user:
-                  type: object
-                  properties:
-                    username:
-                      type: string
-                    email:
-                      type: string
-                    profile_picture_url:
-                      type: string
+                username:
+                  type: string
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                preferred_language:
+                  type: string
+                avatar:
+                  type: string
+                  format: binary
+                  description: Profile image file
+  "/api/v1/users/{id}/movies":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    get:
+      summary: List a user's watched movies
+      tags:
+      - Users
+      security:
+      - oauth2: []
+      description: Paginated list of the movies this user has watched (same payload
+        shape as GET /movies).
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+      - name: per_page
+        in: query
+        required: false
+        description: 1-100 (default 20)
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: paginates the watched movies
+        '404':
+          description: user not found
+        '401':
+          description: unauthorized
   "/oauth/token":
     post:
       summary: Obtain an access token
