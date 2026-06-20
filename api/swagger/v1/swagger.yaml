@@ -543,7 +543,20 @@ paths:
         content:
           multipart/form-data:
             schema:
-              type: string
+              type: object
+              properties:
+                username:
+                  type: string
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                preferred_language:
+                  type: string
+                avatar:
+                  type: string
+                  format: binary
+                  description: Profile image file
   "/api/v1/users/{id}/movies":
     parameters:
     - name: id

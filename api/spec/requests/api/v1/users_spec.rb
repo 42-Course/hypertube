@@ -136,6 +136,22 @@ RSpec.describe "Users API", type: :request do
                   "multipart/form-data so a profile image (`avatar`) can be " \
                   "uploaded; the image is stored via Active Storage and its " \
                   "URL is returned in `profile_picture_url`."
+      # Doc-only: rswag builds the requestBody from the *first* form param's
+      # schema, so this object describes the whole multipart body in Swagger.
+      # No `let` is defined for it, so it is never sent on the wire; the flat
+      # fields below carry the actual request values.
+      parameter name: :profile, in: :formData, required: false, schema: {
+        type: :object,
+        properties: {
+          username:           { type: :string },
+          first_name:         { type: :string },
+          last_name:          { type: :string },
+          preferred_language: { type: :string },
+          avatar:             { type: :string, format: :binary,
+                                description: "Profile image file" }
+        }
+      }
+
       # Flat multipart fields (not wrapped in `user[...]`), matching how a browser
       # form / the frontend submits the profile editor. Each field is optional;
       # rswag only sends the ones an example defines a `let` for.
