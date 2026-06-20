@@ -81,10 +81,14 @@ class Api::V1::UsersController < ApplicationController
     render json: { error: "User not found" }, status: :not_found
   end
 
+  # The profile edit form is sent as multipart/form-data with flat fields
+  # (username, avatar, ...). Accept that shape, and still tolerate a nested
+  # `user` wrapper for JSON clients.
   def user_params
-    params.require(:user).permit(:username, :email, :password,
-                                 :first_name, :last_name,
-                                 :preferred_language, :profile_picture_url, :avatar)
+    source = params[:user].is_a?(ActionController::Parameters) ? params.require(:user) : params
+    source.permit(:username, :email, :password,
+                  :first_name, :last_name,
+                  :preferred_language, :profile_picture_url, :avatar)
   end
 
   def registration_params
