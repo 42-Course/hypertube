@@ -28,7 +28,7 @@ env:
     RAILS_MAX_THREADS: "5"
     RAILS_LOG_TO_STDOUT: "true"
     REDIS_URL: redis://hypertube-api-redis:6379/0
-    FRONTEND_URL: http://hypertube.fractalia.art
+    FRONTEND_URL: https://hypertube.fractalia.art
     API_URL: https://fractalia.art
     SMTP_HOST: smtp.gmail.com
     SMTP_PORT: "587"
@@ -48,6 +48,7 @@ env:
     - OMDB_API_KEY
     - TMDB_API_KEY
     - PROWLARR_API_KEY
+    - FRONTEND_URL
 
 accessories:
   db:
