@@ -114,6 +114,9 @@ RSpec.describe "Users API", type: :request do
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data["username"]).to eq(user.username)
+          expect(data["first_name"]).to eq(user.first_name)
+          expect(data["last_name"]).to eq(user.last_name)
+          expect(data.keys).to include("preferred_language", "profile_picture_url")
           expect(data.keys).not_to include("email")
         end
       end
@@ -127,42 +130,128 @@ RSpec.describe "Users API", type: :request do
     patch "Update a user" do
       tags        "Users"
       security    [ { oauth2: [] } ]
-      consumes    "application/json"
+      consumes    "multipart/form-data"
       produces    "application/json"
-      parameter name: :body, in: :body, schema: {
-        type: :object,
-        properties: {
-          user: {
-            type: :object,
-            properties: {
-              username:            { type: :string },
-              email:               { type: :string },
-              profile_picture_url: { type: :string }
-            }
-          }
-        }
-      }
+      description "Update the authenticated user's own profile. Sent as " \
+                  "multipart/form-data so a profile image (`avatar`) can be " \
+                  "uploaded; the image is stored via Active Storage and its " \
+                  "URL is returned in `profile_picture_url`."
+      # Single multipart object so the avatar shows up as a binary upload in the
+      # docs. `getter:` keeps the form field name "user" (-> params[:user]) while
+      # the value comes from `let(:user_payload)`, avoiding a clash with the
+      # top-level `let(:user)` (the authenticated account).
+      parameter name: :user, in: :formData, getter: :user_payload, required: false,
+                schema: {
+                  type: :object,
+                  properties: {
+                    username:           { type: :string },
+                    first_name:         { type: :string },
+                    last_name:          { type: :string },
+                    preferred_language: { type: :string },
+                    avatar:             { type: :string, format: :binary,
+                                          description: "Profile image file" }
+                  }
+                }
 
       response "200", "user updated" do
-        let(:id)   { user.id }
-        let(:body) { { user: { username: "newname123" } } }
-        run_test!
+        let(:id)           { user.id }
+        let(:user_payload) { { username: "newname123" } }
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["username"]).to eq("newname123")
+        end
+      end
+
+      response "200", "avatar uploaded" do
+        let(:id) { user.id }
+        let(:user_payload) do
+          { avatar: Rack::Test::UploadedFile.new(
+            Rails.root.join("spec/fixtures/files/avatar.png"), "image/png"
+          ) }
+        end
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(user.reload.avatar).to be_attached
+          expect(data["profile_picture_url"]).to include("/rails/active_storage/")
+        end
       end
 
       response "403", "forbidden cannot update another user" do
-        let(:other) { create(:user) }
-        let(:id)    { other.id }
-        let(:body)  { { user: { username: "hacked" } } }
+        let(:other)        { create(:user) }
+        let(:id)           { other.id }
+        let(:user_payload) { { username: "hacked" } }
         run_test!
       end
 
       response "422", "invalid update" do
-        let(:id)   { user.id }
-        let(:body) { { user: { username: "a" } } } # too short / fails validation
+        let(:id)           { user.id }
+        let(:user_payload) { { username: "a" } } # too short / fails validation
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data).to have_key("errors")
         end
+      end
+    end
+  end
+
+  path "/api/v1/users/{id}/movies" do
+    parameter name: :id, in: :path, type: :integer
+
+    get "List a user's watched movies" do
+      tags     "Users"
+      security [ { oauth2: [] } ]
+      produces "application/json"
+      description "Paginated list of the movies this user has watched " \
+                  "(same payload shape as GET /movies)."
+      parameter name: :page,     in: :query, type: :integer, required: false
+      parameter name: :per_page, in: :query, type: :integer, required: false,
+                                 description: "1-100 (default 20)"
+
+      response "200", "returns the user's watched movies (paginated)" do
+        let(:id) { user.id }
+        before do
+          inception = create(:movie, title: "Inception")
+          arrival   = create(:movie, title: "Arrival")
+          create(:watch_history, user: user, movie: inception)
+          create(:watch_history, user: user, movie: arrival)
+        end
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["total"]).to eq(2)
+          expect(data["page"]).to eq(1)
+          expect(data["per_page"]).to eq(20)
+          expect(data["total_pages"]).to eq(1)
+          expect(data["movies"].map { |m| m["title"] })
+            .to contain_exactly("Inception", "Arrival")
+        end
+      end
+
+      response "200", "paginates the watched movies" do
+        let(:id)       { user.id }
+        let(:per_page) { 1 }
+        before do
+          create(:watch_history, user: user, movie: create(:movie, title: "Inception"))
+          create(:watch_history, user: user, movie: create(:movie, title: "Arrival"))
+        end
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["total"]).to eq(2)
+          expect(data["total_pages"]).to eq(2)
+          expect(data["movies"].size).to eq(1)
+        end
+      end
+
+      response "404", "user not found" do
+        let(:id) { 0 }
+        run_test!
+      end
+
+      response "401", "unauthorized" do
+        let(:Authorization) { nil }
+        let(:id)            { user.id }
+        run_test!
       end
     end
   end
