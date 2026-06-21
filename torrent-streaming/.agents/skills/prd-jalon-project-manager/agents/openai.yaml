@@ -1,0 +1,4 @@
+interface:
+  display_name: "PRD Jalon Project Manager"
+  short_description: "Pilot PRD projects by sequential jalons"
+  default_prompt: "Use $prd-jalon-project-manager to run this PRD implementation as a milestone project manager."

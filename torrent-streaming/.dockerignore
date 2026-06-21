@@ -1,0 +1,8 @@
+.git
+.codex
+.agents
+storage/**
+!storage/**/.gitkeep
+tmp
+log
+coverage

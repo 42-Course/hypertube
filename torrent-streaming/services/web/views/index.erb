@@ -1,0 +1,59 @@
+<%# Home page for adding magnets and listing persisted media records. %>
+<% @page_title = "Torrent Streaming" %>
+
+<section class="page-section">
+  <div class="section-header">
+    <h1>Add Magnet</h1>
+  </div>
+  <% if @form_error %>
+    <div class="banner banner--error" role="alert"><%= h(@form_error) %></div>
+  <% end %>
+  <form class="magnet-form" method="post" action="/media">
+    <label class="field">
+      <span>Magnet URI</span>
+      <textarea name="magnet" rows="3" placeholder="magnet:?xt=urn:btih:..." required></textarea>
+    </label>
+    <div class="form-actions">
+      <button type="submit">Add Magnet</button>
+    </div>
+  </form>
+</section>
+
+<section class="page-section">
+  <div class="section-header">
+    <h2>Media Library</h2>
+  </div>
+  <% if @media_list.empty? %>
+    <p class="empty-state">No media yet.</p>
+  <% else %>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">State</th>
+          <th scope="col">Progress</th>
+          <th scope="col">Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @media_list.each do |media| %>
+          <% progress = media.fetch("video_progress") %>
+          <tr>
+            <td>
+              <a class="table-link" href="/media/<%= h(media.fetch("media_id")) %>">
+                <%= h(media["name"] || media.fetch("media_id")) %>
+              </a>
+            </td>
+            <td><span class="status-pill status-pill--<%= h(media.fetch("state")) %>"><%= h(media.fetch("state")) %></span></td>
+            <td>
+              <%= h(progress.fetch("bytes_downloaded").to_s) %>
+              /
+              <%= h(progress.fetch("bytes_total").to_s) %>
+            </td>
+            <td><%= h(media.fetch("updated_at")) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>

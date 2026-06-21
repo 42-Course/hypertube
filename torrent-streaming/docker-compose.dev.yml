@@ -1,0 +1,53 @@
+# Local development override for Docker Compose.
+# It bind-mounts source files read-only so code changes can be exercised quickly
+# without weakening the base runtime storage ownership contract.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --wait
+# After changing code:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml restart web
+
+services:
+  web:
+    volumes:
+      - ./shared/ruby/lib:/app/shared/lib:ro
+      - ./services/web/app.rb:/app/app.rb:ro
+      - ./services/web/service_clients.rb:/app/service_clients.rb:ro
+      - ./services/web/ui_presenter.rb:/app/ui_presenter.rb:ro
+      - ./services/web/views:/app/views:ro
+      - ./services/web/public:/app/public:ro
+
+  transcoder-api:
+    volumes:
+      - ./shared/ruby/lib:/app/shared/lib:ro
+      - ./services/transcoder-api/app.rb:/app/app.rb:ro
+
+  transcoder-worker-interactive:
+    volumes:
+      - ./shared/ruby/lib:/app/shared/lib:ro
+      - ./services/transcoder-worker/worker.rb:/app/worker.rb:ro
+      - ./services/transcoder-worker/healthcheck.rb:/app/healthcheck.rb:ro
+
+  transcoder-worker-vod:
+    volumes:
+      - ./shared/ruby/lib:/app/shared/lib:ro
+      - ./services/transcoder-worker/worker.rb:/app/worker.rb:ro
+      - ./services/transcoder-worker/healthcheck.rb:/app/healthcheck.rb:ro
+
+  range-server:
+    environment:
+      # Dev mode can expose libtorrent discovery knobs for manual swarm testing.
+      BITTORRENT_PORT: "${BITTORRENT_PORT:-6881}"
+      BITTORRENT_LISTEN_INTERFACES: "${BITTORRENT_LISTEN_INTERFACES:-}"
+      BITTORRENT_DHT_ROUTERS: "${BITTORRENT_DHT_ROUTERS:-router.bittorrent.com:6881,router.utorrent.com:6881,dht.transmissionbt.com:6881}"
+      BITTORRENT_DISCOVERY_PROFILE: "${BITTORRENT_DISCOVERY_PROFILE:-standard}"
+      # BITTORRENT_DISCOVERY_PROFILE: "${BITTORRENT_DISCOVERY_PROFILE:-aggressive}"
+      RANGE_SERVER_CACHE_MODE: "${RANGE_SERVER_CACHE_MODE:-readwrite}"
+    ports:
+      # The range HTTP and BitTorrent ports are intentionally dev-only; base
+      # Compose keeps the range server private behind the web/transcoder flow.
+      - "${RANGE_SERVER_PORT:-7000}:7000"
+      - "${BITTORRENT_PORT:-6881}:${BITTORRENT_PORT:-6881}/tcp"
+      - "${BITTORRENT_PORT:-6881}:${BITTORRENT_PORT:-6881}/udp"
+    volumes:
+      - ./services/range-server/app.py:/app/app.py:ro
+      - ./services/range-server/range_server:/app/range_server:ro
