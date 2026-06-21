@@ -27,6 +27,10 @@ Rails.application.routes.draw do
         # itself only browses films already saved in our DB.
         get :search, on: :collection
 
+        # Mint a short-lived signed ticket so the browser can stream this movie
+        # directly from the (separate) streaming service. See StreamTicket.
+        post :stream_ticket, on: :member
+
         # Subject: comments are reachable via /movies/:id/comments (list + create).
         resources :comments, only: %i[index create]
       end

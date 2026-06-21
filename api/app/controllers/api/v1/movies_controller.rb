@@ -78,6 +78,37 @@ class Api::V1::MoviesController < ApplicationController
     render json: movie.as_detail(user: current_user)
   end
 
+  # POST /api/v1/movies/:id/stream_ticket
+  #
+  # Resolve the movie to a streaming media (movie -> magnet -> media, which also
+  # starts the torrent download), then mint a short-lived ticket bound to that
+  # media. The browser hands the ticket directly to the streaming service, which
+  # verifies it locally with the shared secret (StreamTicket), so the user's API
+  # token never crosses into the streaming boundary.
+  def stream_ticket
+    movie = Movie.find_by(id: params[:id])
+    return render json: { error: "Movie not found" }, status: :not_found unless movie
+
+    magnet = movie.magnet_uri
+    if magnet.blank?
+      return render json: { error: "no_torrent", message: "No torrent is available for this movie yet" },
+                    status: :unprocessable_entity
+    end
+
+    media_id = StreamingService.new.ensure_media(magnet: magnet)
+    ticket   = StreamTicket.issue(user: current_user, movie: movie, media_id: media_id)
+
+    render json: {
+      ticket:        ticket,
+      token_type:    "Bearer",
+      expires_in:    StreamTicket::TTL.to_i,
+      media_id:      media_id,
+      streaming_url: StreamingService.public_base_url
+    }, status: :created
+  rescue StreamingService::Error => e
+    render json: { error: "streaming_unavailable", message: e.message }, status: :bad_gateway
+  end
+
   private
 
   def page
