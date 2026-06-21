@@ -1,5 +1,19 @@
 import client from '../../api/client'
 
+function normalizeMovie(movie) {
+  return {
+    id: movie.id,
+    imdbId: movie.imdb_id,
+    title: movie.title,
+    year: movie.year,
+    rating: Number(movie.rating) || 0,
+    coverUrl: movie.cover_url,
+    genre: movie.genres?.[0] || null,
+    genres: movie.genres || [],
+    watched: Boolean(movie.watched),
+  }
+}
+
 function normalizeUser(user) {
   if (!user) return null
   return {
@@ -56,10 +70,60 @@ export async function register({ email, username, firstName, lastName, password 
   return normalizeUser(data)
 }
 
-export async function updateProfile(userId, { username, email, password, profilePictureUrl }) {
+export async function fetchUserMovies(userId, { page = 1, perPage = 20 } = {}) {
+  const { data } = await client.get(`/api/v1/users/${userId}/movies`, {
+    params: { page, per_page: perPage },
+  })
+
+  return {
+    page: data.page || page,
+    perPage: data.per_page || perPage,
+    total: data.total || 0,
+    totalPages: data.total_pages || 1,
+    movies: (data.movies || []).map(normalizeMovie),
+  }
+}
+
+export async function updateProfile(
+  userId,
+  {
+    username,
+    email,
+    firstName,
+    lastName,
+    password,
+    preferredLanguage,
+    profilePictureUrl,
+    avatarFile,
+  },
+) {
+  if (avatarFile) {
+    const formData = new FormData()
+    formData.append('username', username)
+    formData.append('email', email)
+    formData.append('first_name', firstName)
+    formData.append('last_name', lastName)
+    formData.append('preferred_language', preferredLanguage)
+    formData.append('profile_picture_url', profilePictureUrl || '')
+    formData.append('avatar', avatarFile)
+
+    if (password) {
+      formData.append('password', password)
+    }
+
+    const { data } = await client.patch(`/api/v1/users/${userId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+
+    return normalizeUser(data)
+  }
+
   const userPayload = {
     username,
     email,
+    first_name: firstName,
+    last_name: lastName,
+    preferred_language: preferredLanguage,
     profile_picture_url: profilePictureUrl,
   }
 

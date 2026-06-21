@@ -8,6 +8,7 @@ import { useI18n } from '../i18n/useI18n'
 
 const FIRST_PAGE = 1
 const SKELETON_CARD_COUNT = 8
+const SEARCH_DEBOUNCE_MS = 500
 
 function MovieCardSkeleton() {
   return (
@@ -44,6 +45,7 @@ function MoviesPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [loadingMode, setLoadingMode] = useState(null)
   const [searchSubmitCount, setSearchSubmitCount] = useState(0)
+  const [isSearchDebouncing, setIsSearchDebouncing] = useState(false)
   const sortLabel = t(`movies.sort.${sort}`)
   const isReplacingMovies = isLoading && loadingMode === 'replace'
   const isAppendingMovies = isLoading && loadingMode === 'append'
@@ -114,13 +116,31 @@ function MoviesPage() {
     return () => window.clearTimeout(timerId)
   }, [loadMovies, searchSubmitCount])
 
+  useEffect(() => {
+    const nextSearchQuery = searchQuery.trim()
+
+    if (nextSearchQuery === submittedSearchQuery.trim()) {
+      return undefined
+    }
+
+    const timerId = window.setTimeout(() => {
+      setIsSearchDebouncing(false)
+      setSubmittedSearchQuery(searchQuery)
+      setSearchSubmitCount((currentCount) => currentCount + 1)
+    }, SEARCH_DEBOUNCE_MS)
+
+    return () => window.clearTimeout(timerId)
+  }, [searchQuery, submittedSearchQuery])
+
   function handleSearchChange(nextSearchQuery) {
     setSearchQuery(nextSearchQuery)
+    setIsSearchDebouncing(nextSearchQuery.trim() !== submittedSearchQuery.trim())
   }
 
   function handleSearchSubmit() {
     setSubmittedSearchQuery(searchQuery)
     setSearchSubmitCount((currentCount) => currentCount + 1)
+    setIsSearchDebouncing(false)
   }
 
   function handleFiltersChange(nextFilters) {
@@ -170,6 +190,7 @@ function MoviesPage() {
       <section className="space-y-4">
         <MovieSearch
           isSearching={isReplacingMovies}
+          isSearchPending={isSearchDebouncing}
           isDisabled={isReplacingMovies}
           value={searchQuery}
           onChange={handleSearchChange}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { I18nContext } from './I18nContext'
 import { translations } from './translations'
 
@@ -16,12 +16,12 @@ function getInitialLanguage() {
 export function I18nProvider({ children }) {
   const [language, setLanguageState] = useState(getInitialLanguage)
 
-  function setLanguage(nextLanguage) {
+  const setLanguage = useCallback((nextLanguage) => {
     const safeLanguage = translations[nextLanguage] ? nextLanguage : DEFAULT_LANGUAGE
 
     localStorage.setItem(LANGUAGE_STORAGE_KEY, safeLanguage)
     setLanguageState(safeLanguage)
-  }
+  }, [])
 
   const value = useMemo(() => {
     function t(key, replacements = {}) {
@@ -37,7 +37,7 @@ export function I18nProvider({ children }) {
     }
 
     return { language, setLanguage, t }
-  }, [language])
+  }, [language, setLanguage])
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }
