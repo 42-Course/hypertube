@@ -53,6 +53,12 @@ services:
       DATABASE_HOST: db
       SMTP_HOST: mailhog
       SMTP_PORT: 1025
+      # The torrent-streaming stack runs in its own Compose project on a separate
+      # network. Reach its web service across the host gateway (it publishes 4567
+      # on the host). The browser-facing STREAMING_SERVICE_URL stays localhost.
+      STREAMING_SERVICE_INTERNAL_URL: http://host.docker.internal:4567
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

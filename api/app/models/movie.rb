@@ -6,6 +6,15 @@ class Movie < ApplicationRecord
 
   scope :stale, -> { where("last_watched_at < ?", 1.month.ago).where.not(file_path: nil) }
 
+  # A BitTorrent magnet URI built from the stored info-hash (magnet_hash), or
+  # nil when no torrent has been resolved for this film yet. The streaming
+  # service fetches metadata from the swarm, so the xt info-hash is sufficient.
+  def magnet_uri
+    return nil if magnet_hash.blank?
+
+    "magnet:?xt=urn:btih:#{magnet_hash.downcase}"
+  end
+
   # These operate purely on rows already persisted in our DB; the external
   # sources are only consulted by the search endpoint and the detail top-up.
   scope :title_matching,  ->(q) { where("title ILIKE ?", "%#{sanitize_sql_like(q)}%") }

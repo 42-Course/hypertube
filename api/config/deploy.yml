@@ -40,6 +40,7 @@ env:
     SMTP_PORT: "587"
     MAILER_FROM: noreply@fractalia.art
     PROWLARR_URL: https://prowlarr.pulgamecanica.com
+    STREAMING_SERVICE_URL: http://localhost:4567
   secret:
     - RAILS_MASTER_KEY
     - DATABASE_PASSWORD
@@ -55,6 +56,8 @@ env:
     - TMDB_API_KEY
     - PROWLARR_API_KEY
     - FRONTEND_URL
+    - STREAM_TICKET_SECRET
+    - STREAMING_SERVICE_URL
 
 accessories:
   db:

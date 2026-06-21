@@ -10,6 +10,17 @@ RSpec.describe Movie, type: :model do
     it { is_expected.to have_many(:watch_histories).dependent(:destroy) }
   end
 
+  describe "#magnet_uri" do
+    it "builds a btih magnet from the stored info-hash (lower-cased)" do
+      movie = build(:movie, magnet_hash: "ABCDEF0123456789ABCDEF0123456789ABCDEF01")
+      expect(movie.magnet_uri).to eq("magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01")
+    end
+
+    it "returns nil when no torrent has been resolved" do
+      expect(build(:movie, magnet_hash: nil).magnet_uri).to be_nil
+    end
+  end
+
   describe "#watched_by?" do
     let(:movie) { create(:movie) }
     let(:user)  { create(:user) }

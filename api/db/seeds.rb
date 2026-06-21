@@ -48,7 +48,15 @@ end
 swagger_app  = upsert_application("swagger ui")
 frontend_app = upsert_application("frontend")
 
-[ [ "Swagger UI app", swagger_app ], [ "Frontend app", frontend_app ] ].each do |label, app|
+# Machine-to-machine identity for the streaming service. It uses the
+# client_credentials grant (see config/initializers/doorkeeper.rb) to call
+# privileged internal API endpoints (e.g. recording watch history) on its own
+# behalf. Viewer authorization itself rides on signed stream tickets, not on
+# this client (see StreamTicket).
+streaming_app = upsert_application("streaming-service")
+
+[ [ "Swagger UI app", swagger_app ], [ "Frontend app", frontend_app ],
+  [ "Streaming service app", streaming_app ] ].each do |label, app|
   banner(label)
   puts "  name:          #{app.name}"
   puts "  client_id:     #{app.uid}"
