@@ -150,7 +150,10 @@ export const translations = {
       streamStatus: {
         idle: 'Ready to prepare',
         preparing: 'Preparing the stream',
+        buffering: 'Buffering the stream',
         ready: 'Ready to play',
+        unavailable: 'Stream not ready yet',
+        error: 'Playback error',
       },
       preparePlayback: 'Prepare playback',
       preparingPlayback: 'Preparing...',
@@ -435,7 +438,10 @@ export const translations = {
       streamStatus: {
         idle: 'Pret a preparer',
         preparing: 'Preparation du stream',
+        buffering: 'Mise en memoire tampon',
         ready: 'Pret a lire',
+        unavailable: 'Flux pas encore pret',
+        error: 'Erreur de lecture',
       },
       preparePlayback: 'Preparer la lecture',
       preparingPlayback: 'Preparation...',
