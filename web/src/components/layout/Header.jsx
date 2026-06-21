@@ -11,7 +11,7 @@ function Header({ onLogout }) {
     }`
 
   return (
-    <header className="border-b border-zinc-900 bg-zinc-950/95">
+    <header className="sticky top-0 z-50 border-b border-zinc-900 bg-zinc-950/85 backdrop-blur">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4">
         <NavLink className="text-sm font-semibold uppercase tracking-[0.2em] text-red-400" to="/movies">
           {t('app.name')}
@@ -20,6 +20,12 @@ function Header({ onLogout }) {
         <nav className="flex items-center gap-2">
           <NavLink className={linkClass} to="/movies" end>
             {t('nav.movies')}
+          </NavLink>
+          <NavLink className={linkClass} to="/users" end>
+            {t('nav.users')}
+          </NavLink>
+          <NavLink className={linkClass} to="/activity" end>
+            {t('nav.activity')}
           </NavLink>
           <NavLink className={linkClass} to="/profile">
             {t('nav.profile')}

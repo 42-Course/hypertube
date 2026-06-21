@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { createMovieComment, getMovieComments } from './moviesApi'
+import { Link } from 'react-router-dom'
+import {
+  createMovieComment,
+  deleteComment,
+  getMovieComments,
+  updateComment,
+} from './moviesApi'
+import { useAuth } from '../auth/useAuth'
 import { useI18n } from '../../i18n/useI18n'
 
 const PER_PAGE_OPTIONS = [5, 10, 20, 50]
@@ -18,6 +25,7 @@ function formatDate(value, language) {
 
 function MovieComments({ movieId, initialCount = 0, watched = false }) {
   const { language, t } = useI18n()
+  const { user } = useAuth()
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE)
   const [data, setData] = useState(null)
@@ -26,6 +34,10 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
   const [commentContent, setCommentContent] = useState('')
   const [isPosting, setIsPosting] = useState(false)
   const [postError, setPostError] = useState('')
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editingCommentContent, setEditingCommentContent] = useState('')
+  const [pendingCommentId, setPendingCommentId] = useState(null)
+  const [commentActionError, setCommentActionError] = useState('')
 
   // Refetch whenever the movie, page, page size, or refresh trigger changes. The
   // carousel only ever holds one page worth of comments, so each change is a
@@ -33,21 +45,24 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
   useEffect(() => {
     if (!movieId) return undefined
     let active = true
-    setStatus('loading')
+    const timerId = window.setTimeout(() => {
+      setStatus('loading')
 
-    getMovieComments({ movieId, page, perPage })
-      .then((result) => {
-        if (!active) return
-        setData(result)
-        setStatus('ready')
-      })
-      .catch(() => {
-        if (!active) return
-        setStatus('error')
-      })
+      getMovieComments({ movieId, page, perPage })
+        .then((result) => {
+          if (!active) return
+          setData(result)
+          setStatus('ready')
+        })
+        .catch(() => {
+          if (!active) return
+          setStatus('error')
+        })
+    }, 0)
 
     return () => {
       active = false
+      window.clearTimeout(timerId)
     }
   }, [movieId, page, perPage, refreshKey])
 
@@ -67,6 +82,7 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
 
     setIsPosting(true)
     setPostError('')
+    setCommentActionError('')
 
     try {
       await createMovieComment(movieId, commentContent.trim())
@@ -78,6 +94,53 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
       setPostError(t('movieDetails.publishError'))
     } finally {
       setIsPosting(false)
+    }
+  }
+
+  function startCommentEdit(comment) {
+    setCommentActionError('')
+    setEditingCommentId(comment.id)
+    setEditingCommentContent(comment.content)
+  }
+
+  function cancelCommentEdit() {
+    setEditingCommentId(null)
+    setEditingCommentContent('')
+  }
+
+  async function handleCommentUpdate(commentId) {
+    if (!editingCommentContent.trim()) {
+      return
+    }
+
+    setPendingCommentId(commentId)
+    setCommentActionError('')
+
+    try {
+      await updateComment(commentId, editingCommentContent.trim())
+      cancelCommentEdit()
+      setRefreshKey((current) => current + 1)
+    } catch {
+      setCommentActionError(t('movieDetails.updateCommentError'))
+    } finally {
+      setPendingCommentId(null)
+    }
+  }
+
+  async function handleCommentDelete(commentId) {
+    setPendingCommentId(commentId)
+    setCommentActionError('')
+
+    try {
+      await deleteComment(commentId)
+      if (editingCommentId === commentId) {
+        cancelCommentEdit()
+      }
+      setRefreshKey((current) => current + 1)
+    } catch {
+      setCommentActionError(t('movieDetails.deleteCommentError'))
+    } finally {
+      setPendingCommentId(null)
     }
   }
 
@@ -143,6 +206,12 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
       )}
 
       <div className="mt-5 space-y-3">
+        {commentActionError ? (
+          <p className="rounded-xl border border-dashed border-red-500/40 p-5 text-sm text-red-400">
+            {commentActionError}
+          </p>
+        ) : null}
+
         {status === 'loading' ? (
           <p className="rounded-xl border border-dashed border-zinc-800 p-5 text-sm text-zinc-500">
             {t('movieDetails.loadingComments')}
@@ -162,22 +231,103 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
         ) : null}
 
         {status === 'ready'
-          ? comments.map((comment) => (
-              <article
-                className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
-                key={comment.id}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-white">
-                    {comment.author || t('movieDetails.unknownUser')}
-                  </span>
-                  <span className="text-xs text-zinc-500">
-                    {formatDate(comment.createdAt, language)}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-zinc-300">{comment.content}</p>
-              </article>
-            ))
+          ? comments.map((comment) => {
+              const commentAuthor = comment.author || t('movieDetails.unknownUser')
+              const authorInitial = commentAuthor.charAt(0).toUpperCase()
+              const authorId = comment.authorId || comment.userId
+
+              return (
+                <article
+                  className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4"
+                  key={comment.id}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    {authorId ? (
+                      <Link className="group flex items-center gap-3" to={`/users/${authorId}`}>
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200 transition group-hover:bg-red-500 group-hover:text-white">
+                          {authorInitial}
+                        </span>
+                        <span className="text-sm font-semibold text-white transition group-hover:text-red-300">
+                          {commentAuthor}
+                        </span>
+                      </Link>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200">
+                          {authorInitial}
+                        </span>
+                        <span className="text-sm font-semibold text-white">
+                          {commentAuthor}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-zinc-500">
+                        {formatDate(comment.createdAt, language)}
+                      </span>
+                      {authorId === user?.id ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="text-xs font-medium text-zinc-400 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            type="button"
+                            disabled={pendingCommentId === comment.id}
+                            onClick={() => startCommentEdit(comment)}
+                          >
+                            {t('movieDetails.editComment')}
+                          </button>
+                          <button
+                            className="text-xs font-medium text-red-400 transition hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            type="button"
+                            disabled={pendingCommentId === comment.id}
+                            onClick={() => handleCommentDelete(comment.id)}
+                          >
+                            {pendingCommentId === comment.id
+                              ? t('movieDetails.deletingComment')
+                              : t('movieDetails.deleteComment')}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  {editingCommentId === comment.id ? (
+                    <div className="mt-3 space-y-3">
+                      <textarea
+                        className="min-h-24 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
+                        maxLength={1000}
+                        value={editingCommentContent}
+                        onChange={(event) => setEditingCommentContent(event.target.value)}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          type="button"
+                          disabled={
+                            pendingCommentId === comment.id ||
+                            !editingCommentContent.trim()
+                          }
+                          onClick={() => handleCommentUpdate(comment.id)}
+                        >
+                          {pendingCommentId === comment.id
+                            ? t('movieDetails.savingComment')
+                            : t('movieDetails.saveComment')}
+                        </button>
+                        <button
+                          className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+                          type="button"
+                          onClick={cancelCommentEdit}
+                        >
+                          {t('movieDetails.cancelCommentEdit')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm leading-6 text-zinc-300">
+                      {comment.content}
+                    </p>
+                  )}
+                </article>
+              )
+            })
           : null}
       </div>
 

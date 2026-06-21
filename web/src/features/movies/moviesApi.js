@@ -30,13 +30,15 @@ function normalizeComment(comment) {
     content: comment.content,
     createdAt: comment.created_at,
     author: comment.user?.username || null,
-    authorId: comment.user?.id ?? null,
+    authorId: comment.user?.id ?? comment.user_id ?? null,
+    userId: comment.user?.id ?? comment.user_id ?? null,
   }
 }
 
-export async function searchMovies({ page, query, genre, year, rating, sort }) {
+function buildMovieParams({ page, perPage, query, genre, year, rating, sort }) {
   const params = {
     page,
+    per_page: perPage,
     query: query || undefined,
     sort: sort === 'title' ? 'name' : sort,
     order: sort === 'title' ? 'asc' : 'desc',
@@ -57,16 +59,43 @@ export async function searchMovies({ page, query, genre, year, rating, sort }) {
     params.max_year = 2009
   }
 
-  const { data } = await client.get('/api/v1/movies/search', { params })
+  return params
+}
+
+export async function fetchMovies({ page, perPage, query, genre, year, rating, sort }) {
+  const params = buildMovieParams({ page, perPage, query, genre, year, rating, sort })
+  const { data } = await client.get('/api/v1/movies', { params })
+  const totalPages = data.total_pages || 1
 
   return {
     page: data.page || page,
+    perPage: data.per_page || perPage,
+    total: data.total || 0,
+    totalPages,
+    hasMore: (data.page || page) < totalPages,
     movies: (data.movies || []).map(normalizeMovie),
   }
 }
 
 export async function getMovieDetails(movieId) {
   const { data } = await client.get('/api/v1/movies/' + movieId)
+  return normalizeMovieDetail(data)
+}
+
+export async function searchMovies({ page, perPage, query, genre, year, rating, sort }) {
+  const params = buildMovieParams({ page, perPage, query, genre, year, rating, sort })
+  const { data } = await client.get('/api/v1/movies/search', { params })
+  const movies = (data.movies || []).map(normalizeMovie)
+
+  return {
+    page: data.page || page,
+    hasMore: movies.length > 0,
+    movies,
+  }
+}
+
+export async function fetchMovieDetails(movieId) {
+  const { data } = await client.get(`/api/v1/movies/${movieId}`)
   return normalizeMovieDetail(data)
 }
 
@@ -89,4 +118,16 @@ export async function createMovieComment(movieId, content) {
   })
 
   return normalizeComment(data)
+}
+
+export async function updateComment(commentId, content) {
+  const { data } = await client.patch(`/api/v1/comments/${commentId}`, {
+    comment: { content },
+  })
+
+  return normalizeComment(data)
+}
+
+export async function deleteComment(commentId) {
+  await client.delete(`/api/v1/comments/${commentId}`)
 }
