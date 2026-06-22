@@ -3,7 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import HlsPlayer from '../features/movies/HlsPlayer'
 import MovieComments from '../features/movies/MovieComments'
 import MoviePosterFallback from '../features/movies/MoviePosterFallback'
-import { getMovieDetails } from '../features/movies/moviesApi'
+import {
+  getMovieDetails,
+  markMovieUnwatched,
+  markMovieWatched,
+} from '../features/movies/moviesApi'
 import { useMoviePlayback } from '../features/movies/useMoviePlayback'
 import { useI18n } from '../i18n/useI18n'
 
@@ -14,6 +18,8 @@ function MovieDetailsPage() {
   const { t } = useI18n()
   const [movie, setMovie] = useState(null)
   const [errorId, setErrorId] = useState(null)
+  const [watchStatusError, setWatchStatusError] = useState('')
+  const [isUpdatingWatchStatus, setIsUpdatingWatchStatus] = useState(false)
   const [selectedSubtitle, setSelectedSubtitle] = useState('')
   const playback = useMoviePlayback(movieId)
 
@@ -77,8 +83,44 @@ function MovieDetailsPage() {
   const genres = movie.genres?.length
     ? movie.genres.join(' / ')
     : movie.genre || t('movieDetails.unknownGenre')
+  const hasCredits =
+    Boolean(movie.director) || movie.producers.length > 0 || movie.cast.length > 0
 
   const isPreparing = playback.status === 'preparing' || playback.status === 'buffering'
+
+  async function handlePreparePlayback() {
+    const isPlaybackReady = await playback.start()
+
+    if (!isPlaybackReady || movie.watched) {
+      return
+    }
+
+    setIsUpdatingWatchStatus(true)
+    setWatchStatusError('')
+
+    try {
+      const updatedMovie = await markMovieWatched(movie.id)
+      setMovie(updatedMovie)
+    } catch {
+      setWatchStatusError(t('movieDetails.watchStatusError'))
+    } finally {
+      setIsUpdatingWatchStatus(false)
+    }
+  }
+
+  async function handleMarkUnwatched() {
+    setIsUpdatingWatchStatus(true)
+    setWatchStatusError('')
+
+    try {
+      const updatedMovie = await markMovieUnwatched(movie.id)
+      setMovie(updatedMovie)
+    } catch {
+      setWatchStatusError(t('movieDetails.watchStatusError'))
+    } finally {
+      setIsUpdatingWatchStatus(false)
+    }
+  }
 
   return (
     <section className="space-y-7 sm:space-y-10">
@@ -136,6 +178,23 @@ function MovieDetailsPage() {
               {t('movieDetails.noSummary')}
             </p>
           )}
+          {movie.watched ? (
+            <div className="mt-5">
+              <button
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-red-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={isUpdatingWatchStatus}
+                onClick={handleMarkUnwatched}
+              >
+                {isUpdatingWatchStatus
+                  ? t('movieDetails.updatingWatchStatus')
+                  : t('movieDetails.markUnwatched')}
+              </button>
+            </div>
+          ) : null}
+          {watchStatusError ? (
+            <p className="mt-3 text-sm text-red-300">{watchStatusError}</p>
+          ) : null}
         </div>
       </section>
 
@@ -170,7 +229,7 @@ function MovieDetailsPage() {
                   className="mt-6 rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-70"
                   type="button"
                   disabled={isPreparing}
-                  onClick={playback.start}
+                  onClick={handlePreparePlayback}
                 >
                   {isPreparing
                     ? t('movieDetails.preparingPlayback')
@@ -241,6 +300,53 @@ function MovieDetailsPage() {
                   </span>
                 ))}
               </div>
+            </div>
+          ) : null}
+
+          {hasCredits ? (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
+              <h2 className="text-lg font-semibold text-white">{t('movieDetails.credits')}</h2>
+              <dl className="mt-4 space-y-3 text-sm">
+                {movie.director ? (
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="text-zinc-500">{t('movieDetails.director')}</dt>
+                    <dd className="text-right font-medium text-white">{movie.director}</dd>
+                  </div>
+                ) : null}
+                {movie.producers.length > 0 ? (
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="text-zinc-500">{t('movieDetails.producers')}</dt>
+                    <dd className="text-right font-medium text-white">
+                      {movie.producers.join(', ')}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+
+              {movie.cast.length > 0 ? (
+                <div className="mt-5">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    {t('movieDetails.cast')}
+                  </h3>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {movie.cast.slice(0, 8).map((member) => (
+                      <div
+                        className="rounded-xl border border-zinc-800 bg-zinc-950 p-3"
+                        key={`${member.name}-${member.character || 'cast'}`}
+                      >
+                        <p className="line-clamp-1 text-sm font-semibold text-white">
+                          {member.name}
+                        </p>
+                        {member.character ? (
+                          <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
+                            {member.character}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 

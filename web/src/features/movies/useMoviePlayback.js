@@ -63,12 +63,12 @@ export function useMoviePlayback(movieId) {
     try {
       const { ticket, mediaId, streamingUrl } = await requestStreamTicket(movieId)
       if (control.cancelled) {
-        return
+        return false
       }
       if (!ticket || !mediaId || !streamingUrl) {
         setStatus('error')
         setErrorMessage('Streaming is not configured.')
-        return
+        return false
       }
       setAuthToken(ticket)
       const client = createStreamingClient({ baseUrl: streamingUrl, ticket, mediaId })
@@ -88,7 +88,7 @@ export function useMoviePlayback(movieId) {
 
       // 2. Start an interactive transcode session for that file.
       if (control.cancelled) {
-        return
+        return false
       }
       setStatus('buffering')
       await client.play({ fileIndex: file.index, startTimeSeconds: 0 })
@@ -101,14 +101,16 @@ export function useMoviePlayback(movieId) {
         done: (payload) => (payload.playlist_url ? payload : null),
       })
       if (control.cancelled) {
-        return
+        return false
       }
       setPlaylistUrl(client.hlsUrl(playlist.playlist_url))
+      return true
     } catch (error) {
       if (!control.cancelled) {
         setStatus('error')
         setErrorMessage(error.message)
       }
+      return false
     }
   }, [movieId, stop])
 

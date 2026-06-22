@@ -46,7 +46,8 @@ function MoviesPage() {
   const [submittedSearchQuery, setSubmittedSearchQuery] = useState(searchQueryParam)
   const [filters, setFilters] = useState({
     genre: 'all',
-    year: 'all',
+    minYear: 'all',
+    maxYear: 'all',
     rating: 'all',
   })
   const [sort, setSort] = useState('popularity')
@@ -133,7 +134,8 @@ function MoviesPage() {
           perPage: moviesPerPage,
           query: activeSearchQuery,
           genre: filters.genre,
-          year: filters.year,
+          minYear: filters.minYear,
+          maxYear: filters.maxYear,
           rating: filters.rating,
           sort,
         })
@@ -165,8 +167,9 @@ function MoviesPage() {
     [
       activeSearchQuery,
       filters.genre,
+      filters.maxYear,
+      filters.minYear,
       filters.rating,
-      filters.year,
       isLocalSource,
       moviesPerPage,
       sort,
