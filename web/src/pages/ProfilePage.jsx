@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
-import { updateProfile } from '../features/auth/authApi'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { fetchUserMovies, updateProfile } from '../features/auth/authApi'
 import {
   getMoviesPerPage,
   MOVIES_PER_PAGE_OPTIONS,
@@ -47,15 +48,21 @@ function EditableLabel({ children, isEditing, onEdit, editLabel }) {
 function ProfilePage() {
   const { language, setLanguage, t } = useI18n()
   const { user, refresh } = useAuth()
+  const firstNameInputRef = useRef(null)
+  const lastNameInputRef = useRef(null)
   const usernameInputRef = useRef(null)
   const emailInputRef = useRef(null)
   const avatarInputRef = useRef(null)
   const passwordInputRef = useRef(null)
   const [form, setForm] = useState({
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
     username: user.username || '',
     email: user.email || '',
+    preferredLanguage: user.preferredLanguage || language,
     profilePictureUrl: user.profilePictureUrl || '',
   })
+  const [avatarFile, setAvatarFile] = useState(null)
   const [passwordForm, setPasswordForm] = useState({
     password: '',
     passwordConfirmation: '',
@@ -64,18 +71,43 @@ function ProfilePage() {
     user.profilePictureUrl || fallbackAvatar(user),
   )
   const [editingFields, setEditingFields] = useState({
+    firstName: false,
+    lastName: false,
     username: false,
     email: false,
-    profilePictureUrl: false,
     password: false,
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [moviesPerPage, setMoviesPerPage] = useState(getMoviesPerPage)
+  const [watchedMovies, setWatchedMovies] = useState([])
+  const [watchedMoviesStatus, setWatchedMoviesStatus] = useState('loading')
 
-  // History has no API endpoint yet; keep a placeholder list for the layout.
-  const watchedMovies = []
+  useEffect(() => {
+    let active = true
+
+    async function loadWatchedMovies() {
+      setWatchedMoviesStatus('loading')
+
+      try {
+        const data = await fetchUserMovies(user.id, { page: 1, perPage: 6 })
+
+        if (!active) return
+        setWatchedMovies(data.movies)
+        setWatchedMoviesStatus('ready')
+      } catch {
+        if (!active) return
+        setWatchedMoviesStatus('error')
+      }
+    }
+
+    loadWatchedMovies()
+
+    return () => {
+      active = false
+    }
+  }, [user.id])
 
   function updateField(name, value) {
     setForm((currentForm) => ({ ...currentForm, [name]: value }))
@@ -83,6 +115,19 @@ function ProfilePage() {
     if (name === 'profilePictureUrl') {
       setAvatarPreview(value || fallbackAvatar(user))
     }
+  }
+
+  function handleAvatarChange(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  function handlePreferredLanguageChange(value) {
+    updateField('preferredLanguage', value)
+    setLanguage(value)
   }
 
   function updatePasswordField(name, value) {
@@ -118,14 +163,28 @@ function ProfilePage() {
       await updateProfile(user.id, {
         ...form,
         password: passwordForm.password,
+        avatarFile,
       })
-      await refresh()
+      const updatedUser = await refresh()
+      if (updatedUser) {
+        setForm({
+          firstName: updatedUser.firstName || '',
+          lastName: updatedUser.lastName || '',
+          username: updatedUser.username || '',
+          email: updatedUser.email || '',
+          preferredLanguage: updatedUser.preferredLanguage || form.preferredLanguage,
+          profilePictureUrl: updatedUser.profilePictureUrl || '',
+        })
+        setAvatarPreview(updatedUser.profilePictureUrl || fallbackAvatar(updatedUser))
+      }
       setEditingFields({
+        firstName: false,
+        lastName: false,
         username: false,
         email: false,
-        profilePictureUrl: false,
         password: false,
       })
+      setAvatarFile(null)
       setPasswordForm({
         password: '',
         passwordConfirmation: '',
@@ -162,15 +221,27 @@ function ProfilePage() {
                 className="absolute bottom-1 right-1 grid h-9 w-9 place-items-center rounded-full border border-red-400/50 bg-zinc-950 text-sm font-semibold text-red-200 transition hover:border-red-300 hover:text-white"
                 type="button"
                 aria-label={t('profile.changeAvatar')}
-                onClick={() => unlockField('profilePictureUrl', avatarInputRef)}
+                onClick={() => avatarInputRef.current?.click()}
               >
                 ✎
               </button>
+              <input
+                ref={avatarInputRef}
+                className="sr-only"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleAvatarChange}
+              />
             </div>
             <h1 className="mt-5 text-2xl font-semibold text-white">
-              {user.firstName} {user.lastName}
+              {form.firstName} {form.lastName}
             </h1>
-            <p className="mt-1 text-sm text-red-400">@{user.username}</p>
+            <p className="mt-1 text-sm text-red-400">@{form.username}</p>
+            {avatarFile ? (
+              <p className="mt-3 rounded-full bg-zinc-950 px-3 py-1 text-xs text-zinc-400">
+                {t('profile.selectedAvatar', { fileName: avatarFile.name })}
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3">
@@ -183,7 +254,9 @@ function ProfilePage() {
               </p>
             </div>
             <div className="rounded-xl bg-zinc-950 p-4 text-center">
-              <p className="text-2xl font-semibold text-white">{language.toUpperCase()}</p>
+              <p className="text-2xl font-semibold text-white">
+                {form.preferredLanguage.toUpperCase()}
+              </p>
               <p className="mt-1 text-xs uppercase tracking-[0.16em] text-zinc-500">
                 {t('profile.language')}
               </p>
@@ -232,21 +305,37 @@ function ProfilePage() {
 
             <form id="profile-form" className="mt-6 grid gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
               <label className="block">
-                <span className="text-sm font-medium text-zinc-300">{t('profile.firstName')}</span>
+                <EditableLabel
+                  editLabel={t('profile.editFirstName')}
+                  isEditing={editingFields.firstName}
+                  onEdit={() => unlockField('firstName', firstNameInputRef)}
+                >
+                  {t('profile.firstName')}
+                </EditableLabel>
                 <input
-                  className="mt-2 w-full cursor-not-allowed rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-500 outline-none"
-                  value={user.firstName || ''}
+                  ref={firstNameInputRef}
+                  className={editableInputClass(editingFields.firstName)}
+                  value={form.firstName}
+                  onChange={(event) => updateField('firstName', event.target.value)}
+                  readOnly={!editingFields.firstName}
                   type="text"
-                  disabled
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-zinc-300">{t('profile.lastName')}</span>
+                <EditableLabel
+                  editLabel={t('profile.editLastName')}
+                  isEditing={editingFields.lastName}
+                  onEdit={() => unlockField('lastName', lastNameInputRef)}
+                >
+                  {t('profile.lastName')}
+                </EditableLabel>
                 <input
-                  className="mt-2 w-full cursor-not-allowed rounded-lg border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-sm text-zinc-500 outline-none"
-                  value={user.lastName || ''}
+                  ref={lastNameInputRef}
+                  className={editableInputClass(editingFields.lastName)}
+                  value={form.lastName}
+                  onChange={(event) => updateField('lastName', event.target.value)}
+                  readOnly={!editingFields.lastName}
                   type="text"
-                  disabled
                 />
               </label>
               <label className="block">
@@ -283,25 +372,6 @@ function ProfilePage() {
                   type="email"
                 />
               </label>
-              <label className="block md:col-span-2">
-                <EditableLabel
-                  editLabel={t('profile.editAvatar')}
-                  isEditing={editingFields.profilePictureUrl}
-                  onEdit={() => unlockField('profilePictureUrl', avatarInputRef)}
-                >
-                  {t('profile.avatar')}
-                </EditableLabel>
-                <input
-                  ref={avatarInputRef}
-                  className={editableInputClass(editingFields.profilePictureUrl)}
-                  value={form.profilePictureUrl}
-                  onChange={(event) => updateField('profilePictureUrl', event.target.value)}
-                  readOnly={!editingFields.profilePictureUrl}
-                  type="url"
-                  placeholder={t('profile.avatarPlaceholder')}
-                />
-              </label>
-
               <div className="md:col-span-2">
                 <EditableLabel
                   editLabel={t('profile.editPassword')}
@@ -344,8 +414,8 @@ function ProfilePage() {
                 <span className="text-sm font-medium text-zinc-300">{t('profile.preferredLanguage')}</span>
                 <select
                   className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value)}
+                  value={form.preferredLanguage}
+                  onChange={(event) => handlePreferredLanguageChange(event.target.value)}
                 >
                   <option value="en">{t('profile.languageOptions.en')}</option>
                   <option value="fr">{t('profile.languageOptions.fr')}</option>
@@ -381,16 +451,55 @@ function ProfilePage() {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
-          {watchedMovies.map((movie) => (
-            <article className="rounded-xl border border-zinc-800 bg-zinc-950 p-4" key={movie.id}>
-              <h3 className="font-semibold text-white">{movie.title}</h3>
-              <p className="mt-2 text-sm text-zinc-400">
-                {movie.year} · {t('common.imdb')} {movie.rating}
-              </p>
-            </article>
-          ))}
-        </div>
+        {watchedMoviesStatus === 'loading' ? (
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4" key={index}>
+                <div className="h-5 w-2/3 animate-pulse rounded bg-zinc-800" />
+                <div className="mt-3 h-4 w-1/2 animate-pulse rounded bg-zinc-800/80" />
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {watchedMoviesStatus === 'error' ? (
+          <p className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+            {t('profile.watchedMoviesLoadError')}
+          </p>
+        ) : null}
+
+        {watchedMoviesStatus === 'ready' && watchedMovies.length === 0 ? (
+          <p className="mt-5 rounded-xl border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-400">
+            {t('profile.noWatchedMovies')}
+          </p>
+        ) : null}
+
+        {watchedMoviesStatus === 'ready' && watchedMovies.length > 0 ? (
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {watchedMovies.map((movie) => (
+              <Link
+                className="group overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 transition hover:-translate-y-1 hover:border-red-400/70"
+                key={movie.id}
+                to={`/movies/${movie.id}`}
+              >
+                {movie.coverUrl ? (
+                  <img
+                    className="h-40 w-full object-cover transition group-hover:scale-105"
+                    src={movie.coverUrl}
+                    alt={t('movies.card.posterAlt', { title: movie.title })}
+                  />
+                ) : null}
+                <div className="p-4">
+                  <h3 className="line-clamp-2 font-semibold text-white">{movie.title}</h3>
+                  <p className="mt-2 text-sm text-zinc-400">
+                    {movie.year || t('movieDetails.unknown')} · {t('common.imdb')}{' '}
+                    {movie.rating || t('movieDetails.notAvailable')}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : null}
       </section>
     </section>
   )
