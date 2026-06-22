@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchUserMovies, updateProfile } from '../features/auth/authApi'
+import MoviePosterFallback from '../features/movies/MoviePosterFallback'
 import {
   getMoviesPerPage,
   MOVIES_PER_PAGE_OPTIONS,
@@ -488,7 +489,9 @@ function ProfilePage() {
                     src={movie.coverUrl}
                     alt={t('movies.card.posterAlt', { title: movie.title })}
                   />
-                ) : null}
+                ) : (
+                  <MoviePosterFallback className="h-40" title={movie.title} />
+                )}
                 <div className="p-4">
                   <h3 className="line-clamp-2 font-semibold text-white">{movie.title}</h3>
                   <p className="mt-2 text-sm text-zinc-400">

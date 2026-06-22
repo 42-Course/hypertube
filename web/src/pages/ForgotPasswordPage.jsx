@@ -1,24 +1,23 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { requestPasswordReset } from '../features/auth/authApi'
 import { useI18n } from '../i18n/useI18n'
 
 function ForgotPasswordPage() {
   const { t } = useI18n()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
 
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
-    setSuccess('')
     setSubmitting(true)
 
     try {
       await requestPasswordReset(email.trim())
-      setSuccess(t('auth.forgotPassword.success'))
+      navigate('/login?reset_requested=1', { replace: true })
     } catch {
       setError(t('auth.forgotPassword.error'))
     } finally {
@@ -48,16 +47,7 @@ function ForgotPasswordPage() {
           </p>
         )}
 
-        {success && (
-          <p
-            className="mt-6 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
-            role="status"
-          >
-            {success}
-          </p>
-        )}
-
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-5 pb-4" onSubmit={handleSubmit}>
           <label className="block">
             <span className="text-sm font-medium text-zinc-200">
               {t('auth.forgotPassword.email')}
@@ -84,12 +74,12 @@ function ForgotPasswordPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-zinc-400">
-          {t('auth.forgotPassword.backPrompt')}{' '}
-          <Link className="font-medium text-red-400 hover:text-red-300" to="/login">
-            {t('auth.forgotPassword.backLink')}
-          </Link>
-        </p>
+        <Link
+          className="mt-6 text-center text-sm font-medium text-red-400 transition hover:text-red-300"
+          to="/login"
+        >
+          {t('auth.forgotPassword.backToLogin')}
+        </Link>
       </section>
     </main>
   )

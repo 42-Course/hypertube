@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import MovieCard from '../features/movies/MovieCard'
 import MovieFilters from '../features/movies/MovieFilters'
 import MovieSearch from '../features/movies/MovieSearch'
@@ -8,7 +9,8 @@ import { useI18n } from '../i18n/useI18n'
 
 const FIRST_PAGE = 1
 const SKELETON_CARD_COUNT = 8
-const SEARCH_DEBOUNCE_MS = 500
+const SEARCH_DEBOUNCE_MS = 800
+const SEARCH_PENDING_INDICATOR_MS = 250
 
 function MovieCardSkeleton() {
   return (
@@ -28,10 +30,12 @@ function MovieCardSkeleton() {
 
 function MoviesPage() {
   const { t } = useI18n()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchQueryParam = searchParams.get('query')?.trim() || ''
   const loadMoreRef = useRef(null)
   const requestIdRef = useRef(0)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [submittedSearchQuery, setSubmittedSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(searchQueryParam)
+  const [submittedSearchQuery, setSubmittedSearchQuery] = useState(searchQueryParam)
   const [filters, setFilters] = useState({
     genre: 'all',
     year: 'all',
@@ -46,11 +50,45 @@ function MoviesPage() {
   const [loadingMode, setLoadingMode] = useState(null)
   const [searchSubmitCount, setSearchSubmitCount] = useState(0)
   const [isSearchDebouncing, setIsSearchDebouncing] = useState(false)
+  const [searchSource, setSearchSource] = useState('auto')
   const sortLabel = t(`movies.sort.${sort}`)
   const isReplacingMovies = isLoading && loadingMode === 'replace'
   const isAppendingMovies = isLoading && loadingMode === 'append'
+  const isManualSearchLoading = isReplacingMovies && searchSource === 'manual'
+  const isAutomaticSearchLoading = isReplacingMovies && searchSource !== 'manual'
+  const hasPendingSearchQuery = searchQuery.trim() !== submittedSearchQuery.trim()
+  const shouldShowReplacingSkeletons = isReplacingMovies || hasPendingSearchQuery
   const activeSearchQuery = submittedSearchQuery.trim()
   const hasSearchQuery = activeSearchQuery.length > 0
+
+  const updateSearchParam = useCallback(
+    (nextSearchQuery, options = {}) => {
+      const nextParams = new URLSearchParams(searchParams)
+      const cleanedSearchQuery = nextSearchQuery.trim()
+
+      if (cleanedSearchQuery) {
+        nextParams.set('query', cleanedSearchQuery)
+      } else {
+        nextParams.delete('query')
+      }
+
+      setSearchParams(nextParams, { replace: options.replace ?? true })
+    },
+    [searchParams, setSearchParams],
+  )
+
+  const submitSearch = useCallback(
+    (nextSearchQuery, options = {}) => {
+      const cleanedSearchQuery = nextSearchQuery.trim()
+
+      setSubmittedSearchQuery(cleanedSearchQuery)
+      setSearchSubmitCount((currentCount) => currentCount + 1)
+      setIsSearchDebouncing(false)
+      setSearchSource(options.source || 'manual')
+      updateSearchParam(cleanedSearchQuery, options)
+    },
+    [updateSearchParam],
+  )
 
   const loadMovies = useCallback(
     async ({ nextPage, replace }) => {
@@ -123,24 +161,43 @@ function MoviesPage() {
       return undefined
     }
 
-    const timerId = window.setTimeout(() => {
-      setIsSearchDebouncing(false)
-      setSubmittedSearchQuery(searchQuery)
-      setSearchSubmitCount((currentCount) => currentCount + 1)
+    const pendingTimerId = window.setTimeout(() => {
+      setIsSearchDebouncing(true)
+    }, SEARCH_PENDING_INDICATOR_MS)
+
+    const searchTimerId = window.setTimeout(() => {
+      submitSearch(searchQuery, { replace: true, source: 'auto' })
     }, SEARCH_DEBOUNCE_MS)
 
+    return () => {
+      window.clearTimeout(pendingTimerId)
+      window.clearTimeout(searchTimerId)
+    }
+  }, [searchQuery, submittedSearchQuery, submitSearch])
+
+  useEffect(() => {
+    if (searchQueryParam === submittedSearchQuery.trim()) {
+      return undefined
+    }
+
+    const timerId = window.setTimeout(() => {
+      setSearchQuery(searchQueryParam)
+      setSubmittedSearchQuery(searchQueryParam)
+      setSearchSubmitCount((currentCount) => currentCount + 1)
+      setIsSearchDebouncing(false)
+      setSearchSource('auto')
+    }, 0)
+
     return () => window.clearTimeout(timerId)
-  }, [searchQuery, submittedSearchQuery])
+  }, [searchQueryParam, submittedSearchQuery])
 
   function handleSearchChange(nextSearchQuery) {
     setSearchQuery(nextSearchQuery)
-    setIsSearchDebouncing(nextSearchQuery.trim() !== submittedSearchQuery.trim())
+    setIsSearchDebouncing(false)
   }
 
   function handleSearchSubmit() {
-    setSubmittedSearchQuery(searchQuery)
-    setSearchSubmitCount((currentCount) => currentCount + 1)
-    setIsSearchDebouncing(false)
+    submitSearch(searchQuery, { replace: false, source: 'manual' })
   }
 
   function handleFiltersChange(nextFilters) {
@@ -189,9 +246,11 @@ function MoviesPage() {
 
       <section className="space-y-4">
         <MovieSearch
-          isSearching={isReplacingMovies}
-          isSearchPending={isSearchDebouncing}
-          isDisabled={isReplacingMovies}
+          isSearchPending={
+            isSearchDebouncing ||
+            isAutomaticSearchLoading ||
+            isManualSearchLoading
+          }
           value={searchQuery}
           onChange={handleSearchChange}
           onSubmit={handleSearchSubmit}
@@ -218,7 +277,7 @@ function MoviesPage() {
           </p>
         </div>
 
-        {isReplacingMovies ? (
+        {shouldShowReplacingSkeletons ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
               <MovieCardSkeleton key={index} />

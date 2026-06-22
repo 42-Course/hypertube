@@ -28,6 +28,8 @@ export const translations = {
         oauthFailed: 'Provider sign-in failed. Try again.',
         oauthInvalid: 'Invalid or unauthorized provider account.',
         accountCreated: 'Account created. You can now sign in.',
+        resetRequested:
+          'If the account exists, a password reset link has been sent.',
       },
       register: {
         title: 'Create account',
@@ -55,8 +57,7 @@ export const translations = {
         success:
           'If an account exists with this email, a password reset link has been sent.',
         error: 'Unable to request a password reset right now.',
-        backPrompt: 'Found your password?',
-        backLink: 'Log in',
+        backToLogin: 'Back to login',
       },
       resetPassword: {
         title: 'New password',
@@ -109,8 +110,6 @@ export const translations = {
       emptySearchDescription: 'Try another search or remove a filter.',
       loadingMore: 'Loading more movies...',
       searchPlaceholder: 'Search for a movie, saga, director...',
-      searchButton: 'Search',
-      searchingButton: 'Searching...',
       filters: {
         genre: 'Genre',
         year: 'Year',
@@ -206,7 +205,6 @@ export const translations = {
       cancelCommentEdit: 'Cancel',
       updateCommentError: 'Unable to update this comment.',
       deleteCommentError: 'Unable to delete this comment.',
-      mustWatchBeforeComment: 'You need to watch this movie before commenting.',
       noComments: 'No comments yet.',
       noSummary: 'No summary available yet.',
       unknownLength: 'Unknown length',
@@ -264,6 +262,9 @@ export const translations = {
       notFound: 'User not found.',
       loadError: 'Unable to load this profile for now.',
       backToCatalog: 'Back to catalog',
+      backToMovie: 'Back to movie',
+      backToMembers: 'Back to members',
+      backToActivity: 'Back to activity',
       avatarAlt: 'Avatar for {{username}}',
       userId: 'User id',
       email: 'Email',
@@ -324,6 +325,8 @@ export const translations = {
         oauthFailed: 'La connexion avec le fournisseur a echoue. Reessaie.',
         oauthInvalid: 'Compte fournisseur invalide ou non autorise.',
         accountCreated: 'Compte cree. Tu peux maintenant te connecter.',
+        resetRequested:
+          'Si le compte existe, un lien de reinitialisation a ete envoye.',
       },
       register: {
         title: 'Inscription',
@@ -351,8 +354,7 @@ export const translations = {
         success:
           'Si un compte existe avec cet email, un lien de reinitialisation a ete envoye.',
         error: 'Impossible de demander la reinitialisation pour le moment.',
-        backPrompt: 'Tu as retrouve ton mot de passe ?',
-        backLink: 'Se connecter',
+        backToLogin: 'Retour au login',
       },
       resetPassword: {
         title: 'Nouveau mot de passe',
@@ -406,8 +408,6 @@ export const translations = {
       emptySearchDescription: 'Essaie une autre recherche ou retire un filtre.',
       loadingMore: 'Chargement de plus de films...',
       searchPlaceholder: 'Rechercher un film, une saga, un realisateur...',
-      searchButton: 'Rechercher',
-      searchingButton: 'Recherche...',
       filters: {
         genre: 'Genre',
         year: 'Annee',
@@ -503,7 +503,6 @@ export const translations = {
       cancelCommentEdit: 'Annuler',
       updateCommentError: 'Impossible de modifier ce commentaire.',
       deleteCommentError: 'Impossible de supprimer ce commentaire.',
-      mustWatchBeforeComment: 'Tu dois regarder ce film avant de commenter.',
       noComments: 'Aucun commentaire pour le moment.',
       noSummary: 'Aucun resume disponible pour le moment.',
       unknownLength: 'Duree inconnue',
@@ -561,6 +560,9 @@ export const translations = {
       notFound: 'Utilisateur introuvable.',
       loadError: 'Impossible de charger ce profil pour le moment.',
       backToCatalog: 'Retour au catalogue',
+      backToMovie: 'Retour au film',
+      backToMembers: 'Retour aux membres',
+      backToActivity: "Retour a l'activite",
       avatarAlt: 'Avatar de {{username}}',
       userId: 'Id utilisateur',
       email: 'Email',

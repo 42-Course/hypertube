@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import HlsPlayer from '../features/movies/HlsPlayer'
 import MovieComments from '../features/movies/MovieComments'
+import MoviePosterFallback from '../features/movies/MoviePosterFallback'
 import { getMovieDetails } from '../features/movies/moviesApi'
 import { useMoviePlayback } from '../features/movies/useMoviePlayback'
 import { useI18n } from '../i18n/useI18n'
@@ -97,9 +98,7 @@ function MovieDetailsPage() {
               alt={t('movieDetails.posterAlt', { title: movie.title })}
             />
           ) : (
-            <div className="flex aspect-[2/3] items-center justify-center text-sm text-zinc-600">
-              {t('movieDetails.noPoster')}
-            </div>
+            <MoviePosterFallback className="aspect-[2/3]" title={movie.title} />
           )}
         </div>
 
@@ -281,7 +280,6 @@ function MovieDetailsPage() {
       <MovieComments
         movieId={movie.id}
         initialCount={movie.commentsCount}
-        watched={movie.watched}
       />
     </section>
   )
