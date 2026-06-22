@@ -51,7 +51,7 @@ class Api::V1::MoviesController < ApplicationController
     movies = MovieSources::Aggregator.new.list(
       query:      params[:query].presence,
       page:       page,
-      per_page:   PER_PAGE,
+      per_page:   params[:per_page].presence.to_i,
       sort:       params[:sort],
       order:      params[:order],
       genre:      params[:genre].presence,
