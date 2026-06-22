@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { fetchPublicUser, fetchUserMovies } from '../features/auth/authApi'
+import MoviePosterFallback from '../features/movies/MoviePosterFallback'
 import { useI18n } from '../i18n/useI18n'
 
 function PublicProfilePage() {
   const { userId } = useParams()
+  const location = useLocation()
   const { t } = useI18n()
   const [profile, setProfile] = useState(null)
   const [watchedMovies, setWatchedMovies] = useState([])
@@ -52,6 +54,9 @@ function PublicProfilePage() {
     }
   }, [t, userId])
 
+  const backTarget = location.state?.from || '/movies'
+  const backLabel = location.state?.backLabel || t('publicProfile.backToCatalog')
+
   if (isLoading) {
     return (
       <section className="mx-auto max-w-3xl py-12">
@@ -75,9 +80,9 @@ function PublicProfilePage() {
         </h1>
         <Link
           className="mt-6 inline-flex rounded-lg bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400"
-          to="/movies"
+          to={backTarget}
         >
-          {t('publicProfile.backToCatalog')}
+          {backLabel}
         </Link>
       </section>
     )
@@ -89,9 +94,9 @@ function PublicProfilePage() {
     <section className="mx-auto max-w-3xl py-12">
       <Link
         className="inline-flex text-sm font-medium text-zinc-400 transition hover:text-white"
-        to="/movies"
+        to={backTarget}
       >
-        {t('publicProfile.backToCatalog')}
+        {backLabel}
       </Link>
 
       <article className="mt-6 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/60">
@@ -180,7 +185,9 @@ function PublicProfilePage() {
                     src={movie.coverUrl}
                     alt={t('movies.card.posterAlt', { title: movie.title })}
                   />
-                ) : null}
+                ) : (
+                  <MoviePosterFallback className="h-36" title={movie.title} />
+                )}
                 <div className="p-4">
                   <h3 className="line-clamp-2 font-semibold text-white">{movie.title}</h3>
                   <p className="mt-2 text-sm text-zinc-400">

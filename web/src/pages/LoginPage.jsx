@@ -19,7 +19,11 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [success] = useState(() =>
-    searchParams.get('registered') === '1' ? t('auth.login.accountCreated') : '',
+    searchParams.get('registered') === '1'
+      ? t('auth.login.accountCreated')
+      : searchParams.get('reset_requested') === '1'
+        ? t('auth.login.resetRequested')
+        : '',
   )
   const [error, setError] = useState(() => {
     const oauthError = searchParams.get('error')

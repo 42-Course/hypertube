@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { fetchLatestComments } from '../features/comments/commentsApi'
 import { useI18n } from '../i18n/useI18n'
 
@@ -16,6 +16,7 @@ function formatCommentDate(date, language) {
 
 function ActivityPage() {
   const { language, t } = useI18n()
+  const location = useLocation()
   const [comments, setComments] = useState([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -148,6 +149,10 @@ function ActivityPage() {
                     {comment.authorId ? (
                       <Link
                         className="font-semibold text-white transition hover:text-red-300"
+                        state={{
+                          from: `${location.pathname}${location.search}`,
+                          backLabel: t('publicProfile.backToActivity'),
+                        }}
                         to={`/users/${comment.authorId}`}
                       >
                         {comment.author || t('activity.unknownUser')}

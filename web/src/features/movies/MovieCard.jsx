@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useI18n } from '../../i18n/useI18n'
+import MoviePosterFallback from './MoviePosterFallback'
 
 function MovieCard({ movie }) {
   const { t } = useI18n()
@@ -15,9 +16,7 @@ function MovieCard({ movie }) {
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-zinc-900 px-6 text-center text-sm font-semibold text-zinc-500">
-            {movie.title}
-          </div>
+          <MoviePosterFallback title={movie.title} />
         )}
         <span
           className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${

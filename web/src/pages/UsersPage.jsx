@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { fetchUsers } from '../features/auth/authApi'
 import { useI18n } from '../i18n/useI18n'
 
 function UsersPage() {
   const { t } = useI18n()
+  const location = useLocation()
   const [users, setUsers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -112,6 +113,10 @@ function UsersPage() {
 
               <Link
                 className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-zinc-700 px-4 py-3 text-sm font-semibold text-zinc-100 transition group-hover:border-red-400 group-hover:text-white"
+                state={{
+                  from: `${location.pathname}${location.search}`,
+                  backLabel: t('publicProfile.backToMembers'),
+                }}
                 to={`/users/${user.id}`}
               >
                 {t('users.viewProfile')}

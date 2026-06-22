@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   createMovieComment,
   deleteComment,
@@ -23,9 +23,10 @@ function formatDate(value, language) {
   }).format(date)
 }
 
-function MovieComments({ movieId, initialCount = 0, watched = false }) {
+function MovieComments({ movieId, initialCount = 0 }) {
   const { language, t } = useI18n()
   const { user } = useAuth()
+  const location = useLocation()
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE)
   const [data, setData] = useState(null)
@@ -76,7 +77,7 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (!commentContent.trim() || !watched) {
+    if (!commentContent.trim()) {
       return
     }
 
@@ -177,33 +178,27 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
         </label>
       </div>
 
-      {watched ? (
-        <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
-          <textarea
-            className="min-h-28 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-red-400"
-            maxLength={1000}
-            placeholder={t('movieDetails.commentPlaceholder')}
-            value={commentContent}
-            onChange={(event) => setCommentContent(event.target.value)}
-          />
-          {postError && (
-            <p className="text-sm text-red-300" role="alert">
-              {postError}
-            </p>
-          )}
-          <button
-            className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
-            type="submit"
-            disabled={isPosting || !commentContent.trim()}
-          >
-            {isPosting ? t('movieDetails.publishing') : t('movieDetails.addComment')}
-          </button>
-        </form>
-      ) : (
-        <p className="mt-5 rounded-xl border border-dashed border-zinc-800 p-5 text-sm text-zinc-500">
-          {t('movieDetails.mustWatchBeforeComment')}
-        </p>
-      )}
+      <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
+        <textarea
+          className="min-h-28 w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-red-400"
+          maxLength={1000}
+          placeholder={t('movieDetails.commentPlaceholder')}
+          value={commentContent}
+          onChange={(event) => setCommentContent(event.target.value)}
+        />
+        {postError && (
+          <p className="text-sm text-red-300" role="alert">
+            {postError}
+          </p>
+        )}
+        <button
+          className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+          type="submit"
+          disabled={isPosting || !commentContent.trim()}
+        >
+          {isPosting ? t('movieDetails.publishing') : t('movieDetails.addComment')}
+        </button>
+      </form>
 
       <div className="mt-5 space-y-3">
         {commentActionError ? (
@@ -243,7 +238,14 @@ function MovieComments({ movieId, initialCount = 0, watched = false }) {
                 >
                   <div className="flex items-center justify-between gap-3">
                     {authorId ? (
-                      <Link className="group flex items-center gap-3" to={`/users/${authorId}`}>
+                      <Link
+                        className="group flex items-center gap-3"
+                        state={{
+                          from: `${location.pathname}${location.search}`,
+                          backLabel: t('publicProfile.backToMovie'),
+                        }}
+                        to={`/users/${authorId}`}
+                      >
                         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-200 transition group-hover:bg-red-500 group-hover:text-white">
                           {authorInitial}
                         </span>
