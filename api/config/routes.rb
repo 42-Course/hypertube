@@ -31,6 +31,12 @@ Rails.application.routes.draw do
         # directly from the (separate) streaming service. See StreamTicket.
         post :stream_ticket, on: :member
 
+        # Per-user watched flag: POST to mark watched, DELETE to clear it.
+        member do
+          post   "watched", action: :mark_watched
+          delete "watched", action: :mark_unwatched, as: nil
+        end
+
         # Subject: comments are reachable via /movies/:id/comments (list + create).
         resources :comments, only: %i[index create]
       end

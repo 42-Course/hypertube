@@ -176,6 +176,126 @@ RSpec.describe "MovieSources", type: :service do
       titles = aggregator.list(query: "a").map(&:title)
       expect(titles).to eq([ "Arrival", "Zodiac" ])
     end
+
+    describe "#enrich (magnet + metadata)" do
+      # Stubbed resolver (TMDb search) and no credit providers: keeps the
+      # magnet/metadata cases hermetic. Credits get their own block below.
+      subject(:aggregator) do
+        described_class.new(sources: [ tmdb, prowlarr ], resolver: tmdb, credit_providers: [])
+      end
+
+      it "resolves a missing magnet even when display metadata is already present" do
+        # The bug this fixes: a TMDb-sourced film has summary+cover but no
+        # magnet, so the old early-return skipped Prowlarr and it never got one.
+        movie = create(:movie, title: "Inception", year: 2010, tmdb_id: 27205,
+                               summary: "Dom Cobb.", cover_url: "https://img/x.jpg",
+                               magnet_hash: nil)
+
+        expect { aggregator.enrich(movie) }
+          .to change { movie.reload.magnet_hash }.from(nil).to("TOPSEED")
+      end
+
+      it "does not look for a magnet when one is already present" do
+        movie = create(:movie, title: "Inception", summary: "x",
+                               cover_url: "y", magnet_hash: "EXISTING")
+
+        aggregator.enrich(movie)
+
+        expect(a_request(:get, prowlarr_any)).not_to have_been_made
+        expect(movie.reload.magnet_hash).to eq("EXISTING")
+      end
+    end
+
+    describe "#enrich (cast/crew)" do
+      let(:omdb) { MovieSources::Omdb.new }
+
+      subject(:aggregator) do
+        described_class.new(sources: [ tmdb, prowlarr ], resolver: tmdb,
+                            credit_providers: [ tmdb, omdb ])
+      end
+
+      before { allow(omdb).to receive(:api_key).and_return("omdb-key") }
+
+      it "stores TMDb cast (with photos/characters) and crew on first view" do
+        stub_request(:get, %r{api\.themoviedb\.org/3/movie/27205/credits})
+          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                     body: {
+                       cast: [
+                         { "name" => "Leonardo DiCaprio", "character" => "Cobb", "profile_path" => "/leo.jpg" },
+                         { "name" => "Elliot Page", "character" => "Ariadne" }
+                       ],
+                       crew: [
+                         { "name" => "Christopher Nolan", "job" => "Director" },
+                         { "name" => "Emma Thomas", "job" => "Producer" }
+                       ]
+                     }.to_json)
+
+        movie = create(:movie, title: "Inception", tmdb_id: 27205,
+                               summary: "x", cover_url: "y", magnet_hash: "M")
+
+        aggregator.enrich(movie)
+        movie.reload
+
+        expect(movie.director).to eq("Christopher Nolan")
+        expect(movie.producers).to eq([ "Emma Thomas" ])
+        expect(movie.cast.first).to include(
+          "name" => "Leonardo DiCaprio", "character" => "Cobb",
+          "profile_url" => "https://image.tmdb.org/t/p/w500/leo.jpg"
+        )
+      end
+
+      it "falls back to OMDb (IMDb) when TMDb has no credits" do
+        movie = create(:movie, title: "Obscure", tmdb_id: nil, imdb_id: "tt9999999",
+                               summary: "x", cover_url: "y", magnet_hash: "M")
+        stub_request(:get, %r{omdbapi\.com})
+          .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                     body: { "Response" => "True", "Actors" => "Jane Doe, John Roe",
+                             "Director" => "Some Director", "Writer" => "A Writer" }.to_json)
+
+        aggregator.enrich(movie)
+        movie.reload
+
+        expect(movie.cast.map { |c| c["name"] }).to eq([ "Jane Doe", "John Roe" ])
+        expect(movie.director).to eq("Some Director")
+      end
+    end
+
+    describe "#list identity resolution" do
+      # The screenshot bug: a search returns many thumbnail-less Prowlarr release
+      # cards for the same film. Sparse releases (no ids/poster) are resolved by
+      # title against TMDb, so they gain a poster AND collapse into one movie.
+      subject(:aggregator) { described_class.new(sources: [ prowlarr ], resolver: tmdb) }
+
+      before do
+        # Two releases of the same film with DIFFERENT messy titles (so Prowlarr
+        # keeps them as separate groups) and no ids.
+        release_a = { "protocol" => "torrent", "title" => "TPB AFK 2013 1080p",
+                      "infoHash" => "AAA", "seeders" => 10 }
+        release_b = { "protocol" => "torrent", "title" => "The Pirate Bay Away From Keyboard 2013",
+                      "infoHash" => "BBB", "seeders" => 5 }
+        stub_request(:get, prowlarr_any)
+          .to_return(status: 200, body: [ release_a, release_b ].to_json,
+                     headers: { "Content-Type" => "application/json" })
+
+        # TMDb maps both messy titles to the same canonical film.
+        tpb = { "id" => 12345, "title" => "TPB AFK: The Pirate Bay Away From Keyboard",
+                "release_date" => "2013-01-01", "poster_path" => "/tpb.jpg",
+                "overview" => "Documentary.", "vote_average" => 7.1 }
+        stub_request(:get, %r{api\.themoviedb\.org/3/search/movie})
+          .to_return(status: 200, body: tmdb_body([ tpb ]),
+                     headers: { "Content-Type" => "application/json" })
+      end
+
+      it "collapses duplicate releases into one movie with a poster" do
+        expect { aggregator.list(query: "tpb afk") }.to change(Movie, :count).by(1)
+
+        movie = Movie.first
+        expect(movie.tmdb_id).to eq(12345)
+        expect(movie.title).to eq("TPB AFK: The Pirate Bay Away From Keyboard")
+        expect(movie.cover_url).to be_present      # gained from TMDb
+        expect(movie.magnet_hash).to be_present    # kept from a release
+      end
+    end
   end
 
   describe "Redis caching" do

@@ -134,13 +134,21 @@ RSpec.describe "Movies API", type: :request do
       end
 
       response "200", "returns movie details" do
-        let(:movie) { create(:movie) }
-        let(:id)    { movie.id }
+        let(:movie) do
+          create(:movie, credits: {
+            "cast"     => [ { "name" => "Leonardo DiCaprio", "character" => "Cobb" } ],
+            "director" => "Christopher Nolan", "producers" => [ "Emma Thomas" ]
+          })
+        end
+        let(:id) { movie.id }
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data["id"]).to eq(movie.id)
           expect(data).to have_key("comments_count")
           expect(data).to have_key("subtitles")
+          expect(data["director"]).to eq("Christopher Nolan")
+          expect(data["producers"]).to eq([ "Emma Thomas" ])
+          expect(data["cast"].first["name"]).to eq("Leonardo DiCaprio")
         end
       end
 
@@ -229,6 +237,76 @@ RSpec.describe "Movies API", type: :request do
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data["error"]).to eq("Movie not found")
+        end
+      end
+
+      response "401", "unauthorized" do
+        let(:Authorization) { nil }
+        let(:id) { 1 }
+        run_test!
+      end
+    end
+  end
+
+  path "/api/v1/movies/{id}/watched" do
+    parameter name: :id, in: :path, type: :integer, required: true
+
+    post "Mark a movie as watched" do
+      tags     "Movies"
+      produces "application/json"
+      security [ { oauth2: [] } ]
+      description "Records that the current user has watched this movie. " \
+                  "Idempotent. Returns the refreshed detail payload."
+
+      response "200", "movie marked watched" do
+        let(:movie) { create(:movie) }
+        let(:id)    { movie.id }
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["watched"]).to be(true)
+          expect(movie.watched_by?(user)).to be(true)
+        end
+      end
+
+      response "404", "movie not found" do
+        let(:id) { 0 }
+        run_test! do |response|
+          expect(JSON.parse(response.body)["error"]).to eq("Movie not found")
+        end
+      end
+
+      response "401", "unauthorized" do
+        let(:Authorization) { nil }
+        let(:id) { 1 }
+        run_test!
+      end
+    end
+
+    delete "Mark a movie as unwatched" do
+      tags     "Movies"
+      produces "application/json"
+      security [ { oauth2: [] } ]
+      description "Clears the current user's watched mark for this movie. " \
+                  "Idempotent."
+
+      response "200", "movie marked unwatched" do
+        let(:movie) { create(:movie) }
+        let(:id)    { movie.id }
+
+        before { movie.mark_watched_by(user) }
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["watched"]).to be(false)
+          expect(movie.watched_by?(user)).to be(false)
+        end
+      end
+
+      response "404", "movie not found" do
+        let(:id) { 0 }
+        run_test! do |response|
+          expect(JSON.parse(response.body)["error"]).to eq("Movie not found")
         end
       end
 

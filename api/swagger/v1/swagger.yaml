@@ -321,6 +321,69 @@ paths:
           description: movie not found
         '401':
           description: unauthorized
+  "/api/v1/movies/{id}/stream_ticket":
+    post:
+      summary: Mint a stream ticket for a movie
+      tags:
+      - Movies
+      security:
+      - oauth2: []
+      description: Returns a short-lived, movie-scoped signed ticket (JWT) the browser
+        hands directly to the streaming service, which verifies it locally with the
+        shared secret. The user's API token never leaves the API boundary.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '201':
+          description: ticket issued
+        '422':
+          description: movie has no torrent yet
+        '502':
+          description: streaming service unavailable
+        '404':
+          description: movie not found
+        '401':
+          description: unauthorized
+  "/api/v1/movies/{id}/watched":
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    post:
+      summary: Mark a movie as watched
+      tags:
+      - Movies
+      security:
+      - oauth2: []
+      description: Records that the current user has watched this movie. Idempotent.
+        Returns the refreshed detail payload.
+      responses:
+        '200':
+          description: movie marked watched
+        '404':
+          description: movie not found
+        '401':
+          description: unauthorized
+    delete:
+      summary: Mark a movie as unwatched
+      tags:
+      - Movies
+      security:
+      - oauth2: []
+      description: Clears the current user's watched mark for this movie. Idempotent.
+      responses:
+        '200':
+          description: movie marked unwatched
+        '404':
+          description: movie not found
+        '401':
+          description: unauthorized
   "/api/v1/password":
     post:
       summary: Request a password reset email

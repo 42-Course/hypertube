@@ -2,6 +2,7 @@ class Api::V1::MoviesController < ApplicationController
   # The catalog and search are public (subject: "Any user can access the
   # website's front page"). Movie details require authentication.
   skip_before_action :doorkeeper_authorize!, only: %i[index search]
+  before_action :set_movie, only: %i[mark_watched mark_unwatched]
 
   PER_PAGE = 20
 
@@ -109,7 +110,30 @@ class Api::V1::MoviesController < ApplicationController
     render json: { error: "streaming_unavailable", message: e.message }, status: :bad_gateway
   end
 
+  # POST /api/v1/movies/:id/watched
+  #
+  # Mark this movie as watched by the current user. Idempotent: marking an
+  # already-watched film is a no-op. Returns the refreshed detail payload so the
+  # client sees watched: true.
+  def mark_watched
+    @movie.mark_watched_by(current_user)
+    render json: @movie.as_detail(user: current_user)
+  end
+
+  # DELETE /api/v1/movies/:id/watched
+  #
+  # Clear the current user's watched mark for this movie. Idempotent.
+  def mark_unwatched
+    @movie.mark_unwatched_by(current_user)
+    render json: @movie.as_detail(user: current_user)
+  end
+
   private
+
+  def set_movie
+    @movie = Movie.find_by(id: params[:id])
+    render json: { error: "Movie not found" }, status: :not_found unless @movie
+  end
 
   def page
     [ params.fetch(:page, 1).to_i, 1 ].max
