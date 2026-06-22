@@ -12,32 +12,107 @@ module MovieSources
   class Aggregator
     SORTABLE = %w[name year rating genre popularity].freeze
 
-    def initialize(sources: nil)
-      @sources = sources || [ Tmdb.new, Prowlarr.new ]
+    # @param sources          discovery sources queried for search/popular.
+    # @param resolver          metadata API used to give sparse releases a
+    #                          canonical identity + poster/summary (TMDb).
+    # @param credit_providers  cast/crew providers tried in order on the detail
+    #                          view (TMDb for photos/characters, OMDb/IMDb next).
+    def initialize(sources: nil, resolver: nil, credit_providers: nil)
+      @sources          = sources          || [ Tmdb.new, Prowlarr.new ]
+      @resolver         = resolver         || Tmdb.new
+      @credit_providers = credit_providers || [ Tmdb.new, Omdb.new ]
     end
 
     # @return [Array<Movie>] persisted, filtered, sorted, paginated.
     def list(query: nil, page: 1, per_page: 20, **filters)
       results = collect(query: query, page: page)
+      # Raw Prowlarr releases ("TPB.AFK.2013.1080p...") arrive with a magnet but
+      # no poster/ids, and their messy names each dedupe differently - so the
+      # same film shows up as many thumbnail-less cards. Resolve each sparse
+      # release against the metadata API by title FIRST: it gains a canonical
+      # poster/summary AND a tmdb_id, so #merge then folds the duplicates into
+      # one real movie. Results that already carry metadata cost nothing.
+      results = results.map { |result| resolve_identity(result) }
       movies  = merge(results).map { |result| Movie.upsert_from_source(result) }
       movies  = apply_filters(movies, **filters.slice(:genre, :min_year, :max_year, :min_rating))
       movies  = apply_sort(movies, query: query, sort: filters[:sort], order: filters[:order])
       movies.first(per_page)
     end
 
-    # Best-effort metadata top-up for a single movie shown on its detail page.
-    # Only reaches out when something is missing, and never raises.
+    # Best-effort top-up for a single movie shown on its detail page. Reaches out
+    # only for the gaps that remain and never raises. Three independent gaps:
+    #
+    #   * display metadata (summary/cover) - resolved from the metadata API by
+    #     title.
+    #   * the streaming magnet - resolved from Prowlarr, looking for a
+    #     magnet-BEARING match explicitly rather than the first title match
+    #     (usually the magnet-less TMDb result). This is why a film can have rich
+    #     metadata yet no magnet until opened, and why we retry while it is blank.
+    #   * cast/crew - fetched lazily (TMDb credits, OMDb/IMDb fallback) the first
+    #     time the film is opened.
     def enrich(movie)
-      return movie if movie.summary.present? && movie.cover_url.present?
       return movie if movie.title.blank?
 
-      results = collect(query: movie.title, page: 1)
-      match   = merge(results).find { |r| same_film?(r, movie) }
-      movie.upsert_attributes_from_source(match) if match
+      backfill_metadata(movie) if movie.summary.blank? || movie.cover_url.blank?
+      resolve_magnet(movie)    if movie.magnet_hash.blank?
+      resolve_credits(movie)   if movie.credits.blank?
       movie
     end
 
     private
+
+    # Give a sparse discovery result (a Prowlarr-only release: a magnet + a messy
+    # title, no poster/ids) a canonical identity by matching its title against
+    # the metadata API. Returns the rich match with the release's magnet folded
+    # in, so duplicates collapse in #merge. Results that already have an id or a
+    # poster are returned untouched (no network call).
+    def resolve_identity(result)
+      return result if result.tmdb_id.present? || result.cover_url.present?
+
+      match = best_title_match(result.title, result.year)
+      match ? match.merge(result) : result
+    end
+
+    # Top up a persisted movie's display metadata from the metadata API by title.
+    def backfill_metadata(movie)
+      match = best_title_match(movie.title, movie.year)
+      movie.upsert_attributes_from_source(match) if match
+    end
+
+    # Best metadata-API match for a title: prefer the same release year, else the
+    # top result. Never raises (a flaky source must not break the page).
+    def best_title_match(title, year)
+      return nil if title.blank? || !@resolver.available?
+
+      candidates = @resolver.search(query: title)
+      candidates.find { |candidate| candidate.year == year } || candidates.first
+    rescue StandardError => e
+      Rails.logger.warn("[MovieSources] resolver #{@resolver.class}: #{e.class} #{e.message}")
+      nil
+    end
+
+    # Find a magnet for a film from the discovery sources (Prowlarr).
+    def resolve_magnet(movie)
+      candidates = merge(collect(query: movie.title, page: 1))
+      magnet = candidates.find { |r| r.magnet_hash.present? && same_film?(r, movie) }
+      movie.upsert_attributes_from_source(magnet) if magnet
+    end
+
+    # Fetch cast/crew from the first credit provider that has data (TMDb by
+    # tmdb_id, then OMDb by imdb_id). Stored as a jsonb blob on the movie.
+    def resolve_credits(movie)
+      credits = @credit_providers.select(&:available?).lazy
+                                 .filter_map { |provider| safe_credits(provider, movie) }
+                                 .first
+      movie.update!(credits: credits) if credits.present?
+    end
+
+    def safe_credits(provider, movie)
+      provider.credits(movie)
+    rescue StandardError => e
+      Rails.logger.warn("[MovieSources] credits #{provider.class}: #{e.class} #{e.message}")
+      nil
+    end
 
     def collect(query:, page:)
       @sources.select(&:available?).flat_map do |source|

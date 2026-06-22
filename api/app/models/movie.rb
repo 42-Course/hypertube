@@ -65,11 +65,13 @@ class Movie < ApplicationRecord
     movie
   end
 
+  # Prefer the tmdb_id match: identity resolution assigns canonical tmdb_ids, so
+  # this lands on the canonical row rather than an older imdb-keyed duplicate.
   def self.find_by_natural_key(result)
-    return find_by(imdb_id: result.imdb_id) if result.imdb_id.present? &&
-                                               exists?(imdb_id: result.imdb_id)
     return find_by(tmdb_id: result.tmdb_id) if result.tmdb_id.present? &&
                                                exists?(tmdb_id: result.tmdb_id)
+    return find_by(imdb_id: result.imdb_id) if result.imdb_id.present? &&
+                                               exists?(imdb_id: result.imdb_id)
 
     nil
   end
@@ -77,8 +79,12 @@ class Movie < ApplicationRecord
   # Apply non-nil fields from a source result without clobbering data we already
   # have (a later source should only fill blanks), then save.
   def upsert_attributes_from_source(result)
-    self.imdb_id ||= result.imdb_id
-    self.tmdb_id ||= result.tmdb_id
+    # imdb_id/tmdb_id are uniquely indexed. When the SAME film already exists
+    # under a different natural key (e.g. an older imdb-keyed row and a newer
+    # tmdb-keyed one), assigning the resolved id here would violate the unique
+    # index, so only claim an id no other row owns.
+    assign_natural_key(:imdb_id, result.imdb_id)
+    assign_natural_key(:tmdb_id, result.tmdb_id)
 
     SOURCE_ATTRIBUTES.each do |attr|
       value = result[attr]
@@ -95,6 +101,19 @@ class Movie < ApplicationRecord
     watch_histories.exists?(user: user)
   end
 
+  # Idempotently mark this film as watched by `user`. Reuses an existing row so
+  # a movie is never double-counted in someone's history; the create callback
+  # bumps last_watched_at.
+  def mark_watched_by(user)
+    watch_histories.find_or_create_by!(user: user)
+  end
+
+  # Clear `user`'s watched mark(s) for this film. Idempotent (a no-op when the
+  # user never watched it).
+  def mark_unwatched_by(user)
+    watch_histories.where(user: user).destroy_all
+  end
+
   def genres_list
     genres.to_s.split(",").map(&:strip).reject(&:empty?)
   end
@@ -103,6 +122,21 @@ class Movie < ApplicationRecord
   # files are produced by the video pipeline; here we expose what is available.
   def available_subtitles
     Array(subtitle_languages)
+  end
+
+  # Cast/crew resolved from the metadata APIs (see MovieSources). `credits` is a
+  # jsonb blob whose shape varies by source; these readers give the API a stable
+  # surface. Cast members are { name, character?, profile_url? } hashes.
+  def cast
+    Array(credits["cast"])
+  end
+
+  def director
+    credits["director"]
+  end
+
+  def producers
+    Array(credits["producers"])
   end
 
   # Thumbnail payload for the library grid. `watched` is included only when we
@@ -127,11 +161,24 @@ class Movie < ApplicationRecord
       summary:        summary,
       duration:       duration,
       subtitles:      available_subtitles,
-      comments_count: comments.count
+      comments_count: comments.count,
+      cast:           cast,
+      director:       director,
+      producers:      producers
     )
   end
 
   private
+
+  # Set a uniquely-indexed natural key only when it is still blank here and not
+  # already owned by another row, so enriching one film never collides with a
+  # pre-existing duplicate that holds the same id under a different key.
+  def assign_natural_key(attr, value)
+    return if value.blank? || self[attr].present?
+    return if Movie.where.not(id: id).exists?(attr => value)
+
+    self[attr] = value
+  end
 
   # Placeholder until the streaming pipeline records real subtitle tracks.
   # Kept as a method so the API shape is already correct.

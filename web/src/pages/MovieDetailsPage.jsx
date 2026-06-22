@@ -139,7 +139,7 @@ function MovieDetailsPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="grid items-start gap-6 lg:grid-cols-[1fr_360px]">
         <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black">
           {playback.playlistUrl ? (
             <HlsPlayer
@@ -225,7 +225,57 @@ function MovieDetailsPage() {
                   {movie.rating || t('movieDetails.notAvailable')}
                 </dd>
               </div>
+              {movie.director ? (
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-zinc-500">{t('movieDetails.director')}</dt>
+                  <dd className="font-medium text-white">{movie.director}</dd>
+                </div>
+              ) : null}
+              {movie.producers?.length ? (
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-zinc-500">{t('movieDetails.producers')}</dt>
+                  <dd className="text-right font-medium text-white">
+                    {movie.producers.join(', ')}
+                  </dd>
+                </div>
+              ) : null}
             </dl>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
+            <h2 className="text-lg font-semibold text-white">{t('movieDetails.cast')}</h2>
+            {movie.cast?.length ? (
+              <ul className="mt-4 space-y-3">
+                {movie.cast.map((member) => (
+                  <li className="flex items-center gap-3" key={`${member.name}-${member.character}`}>
+                    {member.profileUrl ? (
+                      <img
+                        className="h-10 w-10 flex-none rounded-full object-cover"
+                        src={member.profileUrl}
+                        alt={member.name}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-400">
+                        {member.name?.slice(0, 1)}
+                      </span>
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-white">
+                        {member.name}
+                      </span>
+                      {member.character ? (
+                        <span className="block truncate text-xs text-zinc-500">
+                          {member.character}
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-zinc-500">{t('movieDetails.noCast')}</p>
+            )}
           </div>
 
           {movie.genres.length > 0 ? (
