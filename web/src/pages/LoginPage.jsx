@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   fortyTwoLoginUrl,
+  githubLoginUrl,
   googleLoginUrl,
+  microsoftLoginUrl,
   login as loginRequest,
 } from '../features/auth/authApi'
 import { saveAccessToken } from '../features/auth/authStorage'
@@ -70,6 +72,14 @@ function LoginPage() {
 
   function handleGoogleLogin() {
     window.location.href = googleLoginUrl()
+  }
+
+  function handleGithubLogin() {
+    window.location.href = githubLoginUrl()
+  }
+
+  function handleMicrosoftLogin() {
+    window.location.href = microsoftLoginUrl()
   }
 
   return (
@@ -173,6 +183,22 @@ function LoginPage() {
             onClick={handleGoogleLogin}
           >
             {t('auth.login.continueWithGoogle')}
+          </button>
+
+          <button
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-zinc-900"
+            type="button"
+            onClick={handleGithubLogin}
+          >
+            {t('auth.login.continueWithGithub')}
+          </button>
+
+          <button
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-red-400 hover:bg-zinc-900"
+            type="button"
+            onClick={handleMicrosoftLogin}
+          >
+            {t('auth.login.continueWithMicrosoft')}
           </button>
         </div>
 
