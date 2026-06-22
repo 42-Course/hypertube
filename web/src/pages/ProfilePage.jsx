@@ -2,11 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchUserMovies, updateProfile } from '../features/auth/authApi'
 import MoviePosterFallback from '../features/movies/MoviePosterFallback'
-import {
-  getMoviesPerPage,
-  MOVIES_PER_PAGE_OPTIONS,
-  saveMoviesPerPage,
-} from '../features/settings/settingsStorage'
 import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 
@@ -81,7 +76,6 @@ function ProfilePage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [moviesPerPage, setMoviesPerPage] = useState(getMoviesPerPage)
   const [watchedMovies, setWatchedMovies] = useState([])
   const [watchedMoviesStatus, setWatchedMoviesStatus] = useState('loading')
 
@@ -203,15 +197,11 @@ function ProfilePage() {
     }
   }
 
-  function handleMoviesPerPageChange(value) {
-    setMoviesPerPage(saveMoviesPerPage(value))
-  }
-
   return (
     <section className="space-y-6 py-5 sm:space-y-8 sm:py-10">
-      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <aside className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6">
-          <div className="flex flex-col items-center text-center">
+      <div className="grid items-stretch gap-6 lg:grid-cols-[300px_1fr]">
+        <aside className="flex min-h-[520px] flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 lg:min-h-full">
+          <div className="flex flex-1 flex-col items-center justify-center text-center">
             <div className="relative">
               <img
                 className="h-24 w-24 rounded-full border-4 border-zinc-800 object-cover sm:h-28 sm:w-28"
@@ -245,7 +235,7 @@ function ProfilePage() {
             ) : null}
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="mt-6 grid grid-cols-2 gap-3 border-t border-zinc-800 pt-5">
             <div className="rounded-xl bg-zinc-950 p-3 text-center sm:p-4">
               <p className="text-xl font-semibold text-white sm:text-2xl">
                 {watchedMovies.length}
@@ -263,6 +253,7 @@ function ProfilePage() {
               </p>
             </div>
           </div>
+
         </aside>
 
         <div className="space-y-6">
@@ -374,6 +365,32 @@ function ProfilePage() {
                 />
               </label>
               <div className="md:col-span-2">
+                <span className="text-sm font-medium text-zinc-300">
+                  {t('profile.preferredLanguage')}
+                </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {['en', 'fr'].map((availableLanguage) => (
+                    <button
+                      className={`rounded-lg border px-3 py-2 text-left transition ${
+                        form.preferredLanguage === availableLanguage
+                          ? 'border-red-400 bg-red-500 text-white'
+                          : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700 hover:text-white'
+                      }`}
+                      key={availableLanguage}
+                      type="button"
+                      onClick={() => handlePreferredLanguageChange(availableLanguage)}
+                    >
+                      <span className="text-sm font-semibold">
+                        {t(`profile.languageOptions.${availableLanguage}`)}
+                      </span>
+                      <span className="ml-2 text-xs uppercase tracking-[0.12em] opacity-70">
+                        {availableLanguage}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="md:col-span-2">
                 <EditableLabel
                   editLabel={t('profile.editPassword')}
                   isEditing={editingFields.password}
@@ -406,38 +423,6 @@ function ProfilePage() {
                 </div>
               </div>
             </form>
-          </section>
-
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6">
-            <h2 className="text-xl font-semibold text-white sm:text-2xl">{t('profile.preferences')}</h2>
-            <div className="mt-5 grid gap-5 md:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-medium text-zinc-300">{t('profile.preferredLanguage')}</span>
-                <select
-                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  value={form.preferredLanguage}
-                  onChange={(event) => handlePreferredLanguageChange(event.target.value)}
-                >
-                  <option value="en">{t('profile.languageOptions.en')}</option>
-                  <option value="fr">{t('profile.languageOptions.fr')}</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-zinc-300">{t('profile.moviesPerPage')}</span>
-                <select
-                  className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition focus:border-red-400"
-                  value={moviesPerPage}
-                  onChange={(event) => handleMoviesPerPageChange(event.target.value)}
-                >
-                  {MOVIES_PER_PAGE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {t('profile.moviesPerPageOption', { count: option })}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
           </section>
         </div>
       </div>

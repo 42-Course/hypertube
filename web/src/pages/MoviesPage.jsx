@@ -4,10 +4,10 @@ import MovieCard from '../features/movies/MovieCard'
 import MovieFilters from '../features/movies/MovieFilters'
 import MovieSearch from '../features/movies/MovieSearch'
 import { fetchMovies, searchMovies } from '../features/movies/moviesApi'
-import { getMoviesPerPage } from '../features/settings/settingsStorage'
 import { useI18n } from '../i18n/useI18n'
 
 const FIRST_PAGE = 1
+const MOVIES_PER_PAGE = 20
 const SKELETON_CARD_COUNT = 8
 const SEARCH_DEBOUNCE_MS = 800
 const SEARCH_PENDING_INDICATOR_MS = 250
@@ -52,7 +52,6 @@ function MoviesPage() {
   })
   const [sort, setSort] = useState('popularity')
   const [movies, setMovies] = useState([])
-  const [moviesPerPage] = useState(getMoviesPerPage)
   const [page, setPage] = useState(FIRST_PAGE)
   const [hasMoreMovies, setHasMoreMovies] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
@@ -131,7 +130,7 @@ function MoviesPage() {
         const loadMoviesFromSource = isLocalSource ? fetchMovies : searchMovies
         const result = await loadMoviesFromSource({
           page: nextPage,
-          perPage: moviesPerPage,
+          perPage: MOVIES_PER_PAGE,
           query: activeSearchQuery,
           genre: filters.genre,
           minYear: filters.minYear,
@@ -171,7 +170,6 @@ function MoviesPage() {
       filters.minYear,
       filters.rating,
       isLocalSource,
-      moviesPerPage,
       sort,
     ],
   )
