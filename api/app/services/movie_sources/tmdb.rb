@@ -33,7 +33,38 @@ module MovieSources
       fetch("movie/popular", page: page)
     end
 
+    CAST_LIMIT     = 15  # top-billed actors shown on the detail page
+    PRODUCER_LIMIT = 4
+
+    # Detail-level cast/crew lookup (not part of search/popular). Returns a
+    # normalized credits hash, or nil when TMDb has no usable data so the
+    # aggregator can fall back to another provider.
+    def credits(movie)
+      return nil unless available? && movie.tmdb_id.present?
+
+      body = get_json("movie/#{movie.tmdb_id}/credits", api_key: api_key)
+      cast = Array(body["cast"])
+      crew = Array(body["crew"])
+      return nil if cast.empty? && crew.empty?
+
+      {
+        "cast"      => cast.first(CAST_LIMIT).map { |member| cast_member(member) },
+        "director"  => crew.find { |m| m["job"] == "Director" }&.fetch("name", nil),
+        "producers" => crew.select { |m| m["job"] == "Producer" }
+                           .map { |m| m["name"] }.first(PRODUCER_LIMIT),
+        "source"    => "tmdb"
+      }.compact_blank
+    end
+
     private
+
+    def cast_member(member)
+      {
+        "name"        => member["name"],
+        "character"   => member["character"].presence,
+        "profile_url" => poster_url(member["profile_path"])
+      }.compact
+    end
 
     def fetch(path, params)
       body  = get_json(path, params.merge(api_key: api_key))

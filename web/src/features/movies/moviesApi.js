@@ -14,6 +14,14 @@ function normalizeMovie(movie) {
   }
 }
 
+function normalizeCastMember(member) {
+  return {
+    name: member.name,
+    character: member.character || null,
+    profileUrl: member.profile_url || null,
+  }
+}
+
 function normalizeMovieDetail(movie) {
   return {
     ...normalizeMovie(movie),
@@ -21,6 +29,9 @@ function normalizeMovieDetail(movie) {
     duration: movie.duration || null,
     subtitles: movie.subtitles || [],
     commentsCount: movie.comments_count || 0,
+    cast: (movie.cast || []).map(normalizeCastMember),
+    director: movie.director || null,
+    producers: movie.producers || [],
   }
 }
 
