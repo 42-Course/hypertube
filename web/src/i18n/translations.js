@@ -268,6 +268,7 @@ export const translations = {
       changeAvatar: 'Change profile picture',
       selectedAvatar: 'Selected: {{fileName}}',
       avatarAlt: 'Avatar for {{username}}',
+      movieSource: 'Movie source',
     },
     publicProfile: {
       label: 'Public profile',
@@ -578,6 +579,7 @@ export const translations = {
       changeAvatar: 'Changer la photo de profil',
       selectedAvatar: 'Selection : {{fileName}}',
       avatarAlt: 'Avatar de {{username}}',
+      movieSource: 'Source des films',
     },
     publicProfile: {
       label: 'Profil public',

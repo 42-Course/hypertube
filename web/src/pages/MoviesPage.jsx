@@ -4,6 +4,11 @@ import MovieCard from '../features/movies/MovieCard'
 import MovieFilters from '../features/movies/MovieFilters'
 import MovieSearch from '../features/movies/MovieSearch'
 import { fetchMovies, searchMovies } from '../features/movies/moviesApi'
+import {
+  getMovieSource,
+  MOVIE_SOURCES,
+  saveMovieSource,
+} from '../features/settings/settingsStorage'
 import { useI18n } from '../i18n/useI18n'
 
 const FIRST_PAGE = 1
@@ -11,10 +16,6 @@ const MOVIES_PER_PAGE = 20
 const SKELETON_CARD_COUNT = 8
 const SEARCH_DEBOUNCE_MS = 800
 const SEARCH_PENDING_INDICATOR_MS = 250
-const MOVIE_SOURCES = {
-  local: 'local',
-  online: 'online',
-}
 
 function MovieCardSkeleton() {
   return (
@@ -36,10 +37,15 @@ function MoviesPage() {
   const { t } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQueryParam = searchParams.get('query')?.trim() || ''
+  // Use the URL `source` param when present so deep links win; otherwise fall
+  // back to the persisted per-browser preference (localStorage).
+  const sourceFromParam = searchParams.get('source')
   const movieSourceParam =
-    searchParams.get('source') === MOVIE_SOURCES.online
+    sourceFromParam === MOVIE_SOURCES.online
       ? MOVIE_SOURCES.online
-      : MOVIE_SOURCES.local
+      : sourceFromParam === MOVIE_SOURCES.local
+        ? MOVIE_SOURCES.local
+        : getMovieSource()
   const loadMoreRef = useRef(null)
   const requestIdRef = useRef(0)
   const [searchQuery, setSearchQuery] = useState(searchQueryParam)
@@ -90,13 +96,7 @@ function MoviesPage() {
   const updateSourceParam = useCallback(
     (nextSource) => {
       const nextParams = new URLSearchParams(searchParams)
-
-      if (nextSource === MOVIE_SOURCES.online) {
-        nextParams.set('source', MOVIE_SOURCES.online)
-      } else {
-        nextParams.delete('source')
-      }
-
+      nextParams.set('source', nextSource)
       setSearchParams(nextParams, { replace: false })
     },
     [searchParams, setSearchParams],
@@ -239,6 +239,7 @@ function MoviesPage() {
   function handleSourceChange(nextSource) {
     setSearchSource('manual')
     setIsSearchDebouncing(false)
+    saveMovieSource(nextSource)
     updateSourceParam(nextSource)
   }
 

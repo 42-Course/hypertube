@@ -91,7 +91,11 @@ module MovieSources
       raw = release["title"].to_s
       cut = raw =~ /\b(?:19|20)\d{2}\b/
       raw = raw[0...cut] if cut
-      raw.tr(".", " ").squish.presence || release["title"]
+      cleaned = raw.tr("._", " ").squish
+      # A parenthesised year ("The Movie (2026)") leaves a dangling separator
+      # once the year is cut; strip trailing brackets/dashes/colons/space.
+      cleaned = cleaned.sub(/[\s(\[{\-–—:|]+\z/, "")
+      cleaned.presence || release["title"]
     end
 
     def release_year(release)

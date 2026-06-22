@@ -82,6 +82,20 @@ RSpec.describe "MovieSources", type: :service do
       expect(result.popularity).to eq(250)          # total seeders across releases
     end
 
+    it "does not leave a dangling bracket when the year is parenthesised" do
+      release = {
+        "protocol" => "torrent", "infoHash" => "ABC123",
+        "title" => "The Super Mario Galaxy Movie (2026) 1080p WEBRip x265"
+      }
+      stub_request(:get, prowlarr_any)
+        .to_return(status: 200, body: [ release ].to_json,
+                   headers: { "Content-Type" => "application/json" })
+
+      result = source.search(query: "mario").first
+      expect(result.title).to eq("The Super Mario Galaxy Movie")
+      expect(result.year).to eq(2026)
+    end
+
     it "skips releases without a usable info-hash" do
       stub_request(:get, prowlarr_any)
         .to_return(status: 200,

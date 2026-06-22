@@ -7,8 +7,11 @@ class Api::V1::UsersController < ApplicationController
 
   # GET /api/v1/users
   def index
-    users = User.select(:id, :username)
-    render json: users
+    users = User.with_attached_avatar.order(:id)
+    render json: users.as_json(
+      only:    %i[id username],
+      methods: %i[profile_picture_url]
+    )
   end
 
   # POST /api/v1/users public registration

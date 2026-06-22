@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchUserMovies, updateProfile } from '../features/auth/authApi'
 import MoviePosterFallback from '../features/movies/MoviePosterFallback'
+import { getMovieSource } from '../features/settings/settingsStorage'
 import { useAuth } from '../features/auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 
@@ -197,6 +198,8 @@ function ProfilePage() {
     }
   }
 
+  const movieSource = getMovieSource()
+
   return (
     <section className="space-y-6 py-5 sm:space-y-8 sm:py-10">
       <div className="grid items-stretch gap-6 lg:grid-cols-[300px_1fr]">
@@ -252,6 +255,15 @@ function ProfilePage() {
                 {t('profile.language')}
               </p>
             </div>
+          </div>
+
+          <div className="mt-3 flex flex-col items-center rounded-xl bg-zinc-950 p-3 text-center sm:p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
+              {t('profile.movieSource')}
+            </p>
+            <span className="mt-2 inline-flex items-center rounded-full bg-red-500/15 px-3 py-1 text-sm font-semibold text-red-300">
+              {t(`movies.sources.${movieSource}`)}
+            </span>
           </div>
 
         </aside>
