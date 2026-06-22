@@ -7,6 +7,9 @@
 COMPOSE ?= docker compose
 # Full Compose command for development mode with the override file.
 COMPOSE_DEV ?= docker compose -f docker-compose.yml -f docker-compose.dev.yml
+# Full Compose command for production mode (baked images, kamal-proxy ingress).
+PROD_ENV_FILE ?= .env.production
+COMPOSE_PROD ?= docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.yml -f docker-compose.prod.yml
 # UID/GID used to build the non-root application user inside images.
 APP_UID ?= 10001
 APP_GID ?= 10001
@@ -31,7 +34,7 @@ SERVICE ?=
 # Automatically discovered Ruby test files.
 RUBY_TESTS := $(wildcard tests/ruby/test_*.rb)
 
-.PHONY: help run up start build stop down restart ps logs logs-error logs-web logs-range logs-api logs-workers health shell dev dev-start dev-restart dev-logs dev-logs-error dev-ps dev-stop dev-down test test-smoke test-fast test-python test-ruby test-js test-compose test-syntax test-real clean clean-all storage-dirs storage-permissions
+.PHONY: help run up start build stop down restart ps logs logs-error logs-web logs-range logs-api logs-workers health shell dev dev-start dev-restart dev-logs dev-logs-error dev-ps dev-stop dev-down prod-deploy-remote prod-deploy prod-start prod-proxy prod-ps prod-logs prod-logs-error prod-down test test-smoke test-fast test-python test-ruby test-js test-compose test-syntax test-real clean clean-all storage-dirs storage-permissions
 
 # Prints available commands and useful examples.
 help:
@@ -77,6 +80,15 @@ help:
 	@printf "  make dev-logs SERVICE=web        Suit les logs dev d'un service\n"
 	@printf "  make dev-down                    Arrete le mode dev avec compose down\n"
 	@printf "  make dev-stop                    Alias de make dev-down\n"
+	@printf "\n"
+	@printf "Mode production (Compose-on-host + kamal-proxy):\n"
+	@printf "  make prod-deploy-remote          Depuis le laptop: rsync + deploy via SSH\n"
+	@printf "  make prod-deploy                 Sur le serveur: storage + build + up + proxy\n"
+	@printf "  make prod-start                  Demarre sans rebuild\n"
+	@printf "  make prod-proxy                  Re-enregistre la route stream.fractalia.art\n"
+	@printf "  make prod-ps                     Etat des services prod\n"
+	@printf "  make prod-logs SERVICE=web       Suit les logs prod\n"
+	@printf "  make prod-down                   Arrete la stack prod (garde le storage)\n"
 	@printf "\n"
 	@printf "Tests et verification:\n"
 	@printf "  make test                        Lance les tests rapides locaux\n"
@@ -247,6 +259,50 @@ dev-down:
 
 # Convenience alias for make dev-down.
 dev-stop: dev-down
+
+# --- Production (Compose-on-host + kamal-proxy) -------------------------------
+# From the laptop: push source + .env.production to the host and deploy there.
+prod-deploy-remote:
+	./scripts/deploy_remote.sh
+
+# On the deploy host: prepares storage, builds, starts the stack, registers the
+# proxy. Run from this directory after filling in .env.production.
+prod-deploy:
+	./scripts/deploy_prod.sh
+
+# Starts the production stack without rebuilding and waits for healthchecks.
+prod-start:
+	$(COMPOSE_PROD) up -d --wait
+
+# (Re-)registers the stream.fractalia.art route with kamal-proxy. Re-run this
+# after any `kamal proxy reboot`, which clears manual routes.
+prod-proxy:
+	./scripts/register_proxy.sh
+
+# Shows production service status.
+prod-ps:
+	$(COMPOSE_PROD) ps
+
+# Follows production logs, or one service log with SERVICE=name.
+prod-logs:
+	@if [ -n "$(SERVICE)" ]; then \
+		$(COMPOSE_PROD) logs -f "$(SERVICE)"; \
+	else \
+		$(COMPOSE_PROD) logs -f; \
+	fi
+
+# Follows only stderr from all active production containers.
+prod-logs-error:
+	@containers="$$($(COMPOSE_PROD) ps -q)"; \
+	if [ -z "$$containers" ]; then \
+		printf "Aucun container prod actif. Lance d'abord make prod-deploy.\n"; \
+		exit 1; \
+	fi; \
+	printf "%s\n" "$$containers" | xargs -n 1 -P 8 docker logs -f 1>/dev/null
+
+# Stops the production stack (keeps runtime storage on the host).
+prod-down:
+	$(COMPOSE_PROD) down --remove-orphans
 
 # Runs the fast local test set.
 test: test-fast

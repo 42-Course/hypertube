@@ -6,11 +6,11 @@ version: "3.9"
 # Common application mounts for Ruby services, which own app state and HLS/log
 # outputs while reading torrent data produced by the range server.
 x-storage-volumes: &storage-volumes
-  - ./storage/state:/app/storage/state
-  - ./storage/torrents:/app/storage/torrents
-  - ./storage/libtorrent:/app/storage/libtorrent
-  - ./storage/hls:/app/storage/hls
-  - ./storage/logs:/app/storage/logs
+  - ${STREAMING_STORAGE_ROOT:-./storage}/state:/app/storage/state
+  - ${STREAMING_STORAGE_ROOT:-./storage}/torrents:/app/storage/torrents
+  - ${STREAMING_STORAGE_ROOT:-./storage}/libtorrent:/app/storage/libtorrent
+  - ${STREAMING_STORAGE_ROOT:-./storage}/hls:/app/storage/hls
+  - ${STREAMING_STORAGE_ROOT:-./storage}/logs:/app/storage/logs
 
 services:
   web:
@@ -173,11 +173,11 @@ services:
     volumes:
       # Python/libtorrent owns torrents, libtorrent state, and logs. App state
       # and HLS artifacts are mounted read-only to enforce the service boundary.
-      - ./storage/state:/app/storage/state:ro
-      - ./storage/torrents:/app/storage/torrents
-      - ./storage/libtorrent:/app/storage/libtorrent
-      - ./storage/hls:/app/storage/hls:ro
-      - ./storage/logs:/app/storage/logs
+      - ${STREAMING_STORAGE_ROOT:-./storage}/state:/app/storage/state:ro
+      - ${STREAMING_STORAGE_ROOT:-./storage}/torrents:/app/storage/torrents
+      - ${STREAMING_STORAGE_ROOT:-./storage}/libtorrent:/app/storage/libtorrent
+      - ${STREAMING_STORAGE_ROOT:-./storage}/hls:/app/storage/hls:ro
+      - ${STREAMING_STORAGE_ROOT:-./storage}/logs:/app/storage/logs
     expose:
       - "7000"
     networks:

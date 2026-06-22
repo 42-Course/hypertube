@@ -23,3 +23,8 @@ storage/state/*
 !/storage/logs/.gitkeep
 __pycache__/
 *.pyc
+
+# Production secrets — never commit. STREAM_TICKET_SECRET etc. live here.
+.env.production
+.env.production.local
+.env.local
