@@ -1,5 +1,9 @@
 require "swagger_helper"
 
+# The stream-ticket endpoint signs JWTs with a shared secret; give the suite a
+# deterministic one.
+ENV["STREAM_TICKET_SECRET"] ||= "test-stream-ticket-secret"
+
 RSpec.describe "Movies API", type: :request do
   let(:user)  { create(:user) }
   let(:token) { create(:doorkeeper_access_token, resource_owner_id: user.id) }
@@ -137,6 +141,86 @@ RSpec.describe "Movies API", type: :request do
           expect(data["id"]).to eq(movie.id)
           expect(data).to have_key("comments_count")
           expect(data).to have_key("subtitles")
+        end
+      end
+
+      response "404", "movie not found" do
+        let(:id) { 0 }
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["error"]).to eq("Movie not found")
+        end
+      end
+
+      response "401", "unauthorized" do
+        let(:Authorization) { nil }
+        let(:id) { 1 }
+        run_test!
+      end
+    end
+  end
+
+  path "/api/v1/movies/{id}/stream_ticket" do
+    post "Mint a stream ticket for a movie" do
+      tags        "Movies"
+      produces    "application/json"
+      security    [ { oauth2: [] } ]
+      description "Returns a short-lived, movie-scoped signed ticket (JWT) the " \
+                  "browser hands directly to the streaming service, which " \
+                  "verifies it locally with the shared secret. The user's API " \
+                  "token never leaves the API boundary."
+      parameter name: :id, in: :path, type: :integer, required: true
+
+      response "201", "ticket issued" do
+        let(:movie) { create(:movie, magnet_hash: "ABCDEF0123456789ABCDEF0123456789ABCDEF01") }
+        let(:id)    { movie.id }
+
+        before do
+          # Stub the movie->media handoff so the suite stays hermetic (no live
+          # streaming service). Asserts the API forwards the resolved magnet.
+          allow_any_instance_of(StreamingService)
+            .to receive(:ensure_media)
+            .with(magnet: movie.magnet_uri)
+            .and_return("0123456789abcdef0123456789abcdef")
+        end
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["token_type"]).to eq("Bearer")
+          expect(data["expires_in"]).to eq(StreamTicket::TTL.to_i)
+          expect(data["media_id"]).to eq("0123456789abcdef0123456789abcdef")
+
+          claims = StreamTicket.verify(data["ticket"])
+          expect(claims["sub"]).to eq(user.id.to_s)
+          expect(claims["movie_id"]).to eq(movie.id)
+          expect(claims["media_id"]).to eq("0123456789abcdef0123456789abcdef")
+          expect(claims["scope"]).to eq(StreamTicket::SCOPE)
+        end
+      end
+
+      response "422", "movie has no torrent yet" do
+        let(:movie) { create(:movie, magnet_hash: nil) }
+        let(:id)    { movie.id }
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["error"]).to eq("no_torrent")
+        end
+      end
+
+      response "502", "streaming service unavailable" do
+        let(:movie) { create(:movie, magnet_hash: "ABCDEF0123456789ABCDEF0123456789ABCDEF01") }
+        let(:id)    { movie.id }
+
+        before do
+          allow_any_instance_of(StreamingService)
+            .to receive(:ensure_media)
+            .and_raise(StreamingService::Error, "streaming service unreachable")
+        end
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["error"]).to eq("streaming_unavailable")
         end
       end
 

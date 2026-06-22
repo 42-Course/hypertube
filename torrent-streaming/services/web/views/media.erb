@@ -1,0 +1,211 @@
+<%# Media detail page for status, file selection, track selection, and the browser player bootstrap payload. %>
+<% @page_title = @media["name"] || @media.fetch("media_id") %>
+<% payload = @media_payload %>
+
+<section class="page-section page-section--tight">
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a href="/">Media Library</a>
+    <span>/</span>
+    <span><%= h(@media["name"] || @media.fetch("media_id")) %></span>
+  </nav>
+  <div class="section-header">
+    <h1><%= h(@media["name"] || @media.fetch("media_id")) %></h1>
+    <p><code><%= h(@media.fetch("media_id")) %></code></p>
+  </div>
+  <% if @page_error %>
+    <div class="banner banner--error" role="alert"><%= h(@page_error) %></div>
+  <% end %>
+</section>
+
+<section class="page-grid">
+  <section class="page-section">
+    <div class="section-header">
+      <h2>Status</h2>
+    </div>
+    <dl class="stats-grid">
+      <div>
+        <dt>State</dt>
+        <dd><span class="status-pill status-pill--<%= h(payload[:state]) %>" data-status-state><%= h(payload[:state]) %></span></dd>
+      </div>
+      <div>
+        <dt>Info Hash</dt>
+        <dd data-status-info-hash><%= h(payload[:info_hash] || "Pending") %></dd>
+      </div>
+      <div>
+        <dt>Downloaded</dt>
+        <dd data-status-downloaded><%= h(payload[:video_progress]["bytes_downloaded"].to_s) %></dd>
+      </div>
+      <div>
+        <dt>Total</dt>
+        <dd data-status-total><%= h(payload[:video_progress]["bytes_total"].to_s) %></dd>
+      </div>
+      <div>
+        <dt>Duration</dt>
+        <dd data-status-duration><%= h(payload[:duration_seconds] ? format("%.2fs", payload[:duration_seconds]) : "Unknown") %></dd>
+      </div>
+      <div>
+        <dt>Session</dt>
+        <dd data-status-session><%= h(payload[:current_session_id] || "None") %></dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="page-section">
+    <div class="section-header">
+      <h2>Messages</h2>
+    </div>
+    <% if payload[:errors].empty? && payload[:warnings].empty? %>
+      <p class="empty-state">No current playback errors or warnings.</p>
+    <% else %>
+      <ul class="message-list">
+        <% payload[:errors].each do |error| %>
+          <li class="message-list__item message-list__item--error">
+            <strong><%= h(error[:title]) %></strong>
+            <p><%= h(error[:message]) %></p>
+            <p class="message-list__action"><%= h(error[:action]) %></p>
+          </li>
+        <% end %>
+        <% payload[:warnings].each do |warning| %>
+          <li class="message-list__item message-list__item--warning">
+            <strong><%= h(warning[:title]) %></strong>
+            <p><%= h(warning[:message]) %></p>
+            <p class="message-list__action"><%= h(warning[:action]) %></p>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+</section>
+
+<section class="page-grid">
+  <section class="page-section">
+    <div class="section-header">
+      <h2>Video Files</h2>
+    </div>
+    <% video_files = payload[:files].select { |file| file[:kind] == "video" } %>
+    <% if video_files.empty? %>
+      <p class="empty-state">No supported video files are currently available.</p>
+    <% else %>
+      <form class="selection-form" method="post" action="/media/<%= h(@media.fetch("media_id")) %>/select-file">
+        <label class="field">
+          <span>Selected video</span>
+          <select name="file_index">
+            <% video_files.each do |file| %>
+              <option value="<%= h(file[:index].to_s) %>" <%= "selected" if file[:selected] %>>
+                <%= h(file[:display_name]) %>
+              </option>
+            <% end %>
+          </select>
+        </label>
+        <div class="form-actions">
+          <button type="submit">Use File</button>
+        </div>
+      </form>
+      <ul class="compact-list">
+        <% video_files.each do |file| %>
+          <li>
+            <span><%= h(file[:display_name]) %></span>
+            <span><%= h(file[:size].to_s) %> bytes</span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+
+  <section class="page-section">
+    <div class="section-header">
+      <h2>Tracks</h2>
+    </div>
+    <div class="track-columns">
+      <div>
+        <h3>Audio</h3>
+        <% if payload[:audio_tracks].empty? %>
+          <p class="empty-state">Default audio only.</p>
+        <% else %>
+          <ul class="compact-list">
+            <% payload[:audio_tracks].each do |track| %>
+              <li><%= h(track[:label]) %></li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
+      <div>
+        <h3>Subtitles</h3>
+        <% if payload[:subtitles].empty? %>
+          <p class="empty-state">No subtitles discovered.</p>
+        <% else %>
+          <ul class="compact-list">
+            <% payload[:subtitles].each do |track| %>
+              <li>
+                <span><%= h(track[:label]) %></span>
+                <% unless track[:supported] %>
+                  <span class="compact-list__meta"><%= h(track[:reason]) %></span>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
+    </div>
+  </section>
+</section>
+
+<section class="page-section player-section" data-player-root data-media-id="<%= h(@media.fetch("media_id")) %>">
+  <div class="section-header">
+    <h2>Player</h2>
+  </div>
+
+  <div class="player-frame">
+    <video controls playsinline preload="metadata" data-player-video></video>
+  </div>
+
+  <div class="control-grid">
+    <label class="field">
+      <span>Audio</span>
+      <select data-audio-select>
+        <option value="" <%= "selected" if payload[:playback][:selected_audio].nil? %>>Default</option>
+        <% payload[:audio_tracks].each do |track| %>
+          <option value="<%= h(track[:index].to_s) %>" <%= "selected" if payload[:playback][:selected_audio] == track[:index] %>><%= h(track[:label]) %></option>
+        <% end %>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Subtitle</span>
+      <select data-subtitle-select>
+        <option value="" <%= "selected" if payload[:playback][:selected_subtitle].nil? %>>Off</option>
+        <% payload[:subtitles].each do |track| %>
+          <option value="<%= h(track[:index].to_s) %>" <%= "disabled" unless track[:supported] %> <%= "selected" if payload[:playback][:selected_subtitle] == track[:index] %>>
+            <%= h(track[:label]) %>
+          </option>
+        <% end %>
+      </select>
+    </label>
+
+    <div class="button-row">
+      <button type="button" data-play-button>Play</button>
+      <button type="button" data-stop-button class="button-secondary">Stop</button>
+    </div>
+  </div>
+
+  <div class="timeline-block">
+    <label class="field">
+      <span>Global timeline</span>
+      <input type="range" min="0" value="0" step="1" data-timeline>
+    </label>
+    <div class="timeline-meta">
+      <span data-timeline-current>0:00</span>
+      <span data-timeline-total>Unknown duration</span>
+      <span data-runtime-state>Idle</span>
+    </div>
+  </div>
+
+  <div class="banner banner--info" data-player-message role="status">
+    Waiting for a playback session.
+  </div>
+</section>
+
+<%# player.js treats this JSON as its browser-facing media/session contract. %>
+<script id="media-bootstrap" type="application/json"><%= @bootstrap_json %></script>
+<script src="/vendor/hls.min.js"></script>
+<script src="/player.js"></script>

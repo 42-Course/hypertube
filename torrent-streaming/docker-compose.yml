@@ -1,0 +1,208 @@
+# Base Docker Compose runtime for the single-user torrent streaming POC.
+# Only the web service is published to the host; backend services stay on the
+# internal network and share storage with explicit ownership boundaries.
+version: "3.9"
+
+# Common application mounts for Ruby services, which own app state and HLS/log
+# outputs while reading torrent data produced by the range server.
+x-storage-volumes: &storage-volumes
+  - ${STREAMING_STORAGE_ROOT:-./storage}/state:/app/storage/state
+  - ${STREAMING_STORAGE_ROOT:-./storage}/torrents:/app/storage/torrents
+  - ${STREAMING_STORAGE_ROOT:-./storage}/libtorrent:/app/storage/libtorrent
+  - ${STREAMING_STORAGE_ROOT:-./storage}/hls:/app/storage/hls
+  - ${STREAMING_STORAGE_ROOT:-./storage}/logs:/app/storage/logs
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: services/web/Dockerfile
+      args:
+        APP_UID: "${APP_UID:-10001}"
+        APP_GID: "${APP_GID:-10001}"
+    environment:
+      APP_NAME: web
+      PORT: "4567"
+      STORAGE_ROOT: /app/storage
+      TRANSCODER_API_URL: http://transcoder-api:4568
+      # Allow the Hypertube API (separate Compose project) to reach this service
+      # across the host gateway for the movie->media handoff. Sinatra's
+      # host_authorization otherwise 403s the host.docker.internal Host header.
+      PERMITTED_HOSTS: "localhost,127.0.0.1,0.0.0.0,web,transcoder-api,host.docker.internal"
+    volumes: *storage-volumes
+    ports:
+      # Base mode exposes only the user-facing Sinatra UI.
+      - "${WEB_PORT:-4567}:4567"
+    depends_on:
+      transcoder-api:
+        condition: service_healthy
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4567/health/ready >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  transcoder-api:
+    build:
+      context: .
+      dockerfile: services/transcoder-api/Dockerfile
+      args:
+        APP_UID: "${APP_UID:-10001}"
+        APP_GID: "${APP_GID:-10001}"
+    environment:
+      APP_NAME: transcoder-api
+      PORT: "4568"
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_ROOT: /app/storage
+      FFPROBE_TIMEOUT_SECONDS: "${FFPROBE_TIMEOUT_SECONDS:-45}"
+    volumes: *storage-volumes
+    expose:
+      - "4568"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4568/health/ready >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  transcoder-worker-interactive:
+    build:
+      context: .
+      dockerfile: services/transcoder-worker/Dockerfile
+      args:
+        APP_UID: "${APP_UID:-10001}"
+        APP_GID: "${APP_GID:-10001}"
+    environment:
+      APP_NAME: transcoder-worker-interactive
+      REDIS_URL: redis://redis:6379/0
+      SIDEKIQ_QUEUES: interactive,cleanup
+      SIDEKIQ_CONCURRENCY: "2"
+      TRANSCODER_WORKER_ROLE: interactive
+      STORAGE_ROOT: /app/storage
+      FFPROBE_TIMEOUT_SECONDS: "${FFPROBE_TIMEOUT_SECONDS:-45}"
+    command:
+      - bundle
+      - exec
+      - sidekiq
+      - -r
+      - ./worker.rb
+      - -q
+      - interactive
+      - -q
+      - cleanup
+      - -c
+      - "2"
+    volumes: *storage-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD", "ruby", "/app/healthcheck.rb"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    restart: unless-stopped
+
+  transcoder-worker-vod:
+    build:
+      context: .
+      dockerfile: services/transcoder-worker/Dockerfile
+      args:
+        APP_UID: "${APP_UID:-10001}"
+        APP_GID: "${APP_GID:-10001}"
+    environment:
+      APP_NAME: transcoder-worker-vod
+      REDIS_URL: redis://redis:6379/0
+      SIDEKIQ_QUEUES: vod_control,vod
+      SIDEKIQ_CONCURRENCY: "2"
+      TRANSCODER_WORKER_ROLE: vod
+      STORAGE_ROOT: /app/storage
+    command:
+      - bundle
+      - exec
+      - sidekiq
+      - -r
+      - ./worker.rb
+      - -q
+      - vod_control
+      - -q
+      - vod
+      - -c
+      - "2"
+    volumes: *storage-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD", "ruby", "/app/healthcheck.rb"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    restart: unless-stopped
+
+  range-server:
+    build:
+      context: .
+      dockerfile: services/range-server/Dockerfile
+      args:
+        APP_UID: "${APP_UID:-10001}"
+        APP_GID: "${APP_GID:-10001}"
+    environment:
+      APP_NAME: range-server
+      PORT: "7000"
+      STORAGE_ROOT: /app/storage
+      RANGE_SERVER_MIN_FREE_SPACE_BYTES: "${RANGE_SERVER_MIN_FREE_SPACE_BYTES:-104857600}"
+      RANGE_SERVER_PIECE_TIMEOUT_SECONDS: "${RANGE_SERVER_PIECE_TIMEOUT_SECONDS:-30}"
+      RANGE_SERVER_PRELOAD_PIECES: "${RANGE_SERVER_PRELOAD_PIECES:-4}"
+    volumes:
+      # Python/libtorrent owns torrents, libtorrent state, and logs. App state
+      # and HLS artifacts are mounted read-only to enforce the service boundary.
+      - ${STREAMING_STORAGE_ROOT:-./storage}/state:/app/storage/state:ro
+      - ${STREAMING_STORAGE_ROOT:-./storage}/torrents:/app/storage/torrents
+      - ${STREAMING_STORAGE_ROOT:-./storage}/libtorrent:/app/storage/libtorrent
+      - ${STREAMING_STORAGE_ROOT:-./storage}/hls:/app/storage/hls:ro
+      - ${STREAMING_STORAGE_ROOT:-./storage}/logs:/app/storage/logs
+    expose:
+      - "7000"
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:7000/health/ready >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    expose:
+      - "6379"
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    restart: unless-stopped
+
+networks:
+  app-internal:

@@ -1,0 +1,59 @@
+# Production override for the torrent streaming stack.
+#
+# Deployment model: "Compose-on-host + kamal-proxy". The whole stack runs as a
+# Docker Compose project on the same host as the Hypertube API. We do NOT use
+# Kamal to deploy these services (they are a multi-image inter-networked mesh
+# with shared storage that does not map onto Kamal's one-app model). Instead the
+# public `web` service joins the existing `kamal` Docker network so the
+# Kamal-managed kamal-proxy can terminate TLS for stream.fractalia.art and route
+# to it — see scripts/deploy_prod.sh / scripts/register_proxy.sh.
+#
+# Usage:
+#   docker compose --env-file .env.production \
+#     -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait
+#
+# Unlike docker-compose.dev.yml this override mounts NO source: the baked images
+# are the unit of deployment. Code changes require a rebuild.
+
+services:
+  web:
+    environment:
+      # Production must enforce signed viewer tickets — without this anyone who
+      # can reach the host:port can stream. STREAM_TICKET_SECRET MUST match the
+      # value the Hypertube API signs tickets with (api/.env.production).
+      STREAM_TICKET_REQUIRED: "1"
+      STREAM_TICKET_SECRET: "${STREAM_TICKET_SECRET:?STREAM_TICKET_SECRET must be set for production}"
+      # Browser CORS: only the deployed SPA origin may call the streaming API.
+      CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-https://hypertube.fractalia.art}"
+      # Sinatra host_authorization must accept the public host (via kamal-proxy)
+      # and the internal aliases used for M2M and proxy ingress.
+      PERMITTED_HOSTS: "stream.fractalia.art,streaming-web,web,localhost,127.0.0.1,0.0.0.0"
+    # No host port publish in production: kamal-proxy reaches the container over
+    # the shared `kamal` network by its alias. Override the base port mapping
+    # with an empty list so 4567 is not exposed on the host.
+    ports: !reset []
+    networks:
+      app-internal: {}
+      kamal:
+        # Stable hostname for kamal-proxy ingress and for the API's M2M calls
+        # (STREAMING_SERVICE_INTERNAL_URL=http://streaming-web:4567).
+        aliases:
+          - streaming-web
+
+  range-server:
+    environment:
+      # Publish a fixed BitTorrent port so libtorrent can accept inbound peer
+      # connections (better swarm health than outbound-only). Profile/knobs are
+      # production-tuned conservative defaults.
+      BITTORRENT_PORT: "${BITTORRENT_PORT:-6881}"
+      BITTORRENT_DISCOVERY_PROFILE: "${BITTORRENT_DISCOVERY_PROFILE:-standard}"
+      RANGE_SERVER_CACHE_MODE: "${RANGE_SERVER_CACHE_MODE:-readwrite}"
+    ports:
+      - "${BITTORRENT_PORT:-6881}:${BITTORRENT_PORT:-6881}/tcp"
+      - "${BITTORRENT_PORT:-6881}:${BITTORRENT_PORT:-6881}/udp"
+
+networks:
+  # The network Kamal creates for the Hypertube API and kamal-proxy. Declared
+  # external so this stack attaches to it rather than creating its own.
+  kamal:
+    external: true

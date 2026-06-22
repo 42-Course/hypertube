@@ -40,6 +40,13 @@ env:
     SMTP_PORT: "587"
     MAILER_FROM: noreply@fractalia.art
     PROWLARR_URL: https://prowlarr.pulgamecanica.com
+    # Public, browser-facing base of the streaming service (returned to the SPA
+    # as streaming_url). Fronted by kamal-proxy with TLS.
+    STREAMING_SERVICE_URL: https://stream.fractalia.art
+    # M2M base for movie->media handoff. The API container and the streaming web
+    # container share the `kamal` Docker network, so the API reaches it directly
+    # by its network alias without going back out through the proxy.
+    STREAMING_SERVICE_INTERNAL_URL: http://streaming-web:4567
   secret:
     - RAILS_MASTER_KEY
     - DATABASE_PASSWORD
@@ -55,6 +62,9 @@ env:
     - TMDB_API_KEY
     - PROWLARR_API_KEY
     - FRONTEND_URL
+    # Shared HMAC secret used to sign viewer stream tickets. MUST match
+    # STREAM_TICKET_SECRET in torrent-streaming/.env.production.
+    - STREAM_TICKET_SECRET
 
 accessories:
   db:

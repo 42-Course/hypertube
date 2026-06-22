@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import HlsPlayer from '../features/movies/HlsPlayer'
 import MovieComments from '../features/movies/MovieComments'
 import { getMovieDetails } from '../features/movies/moviesApi'
+import { useMoviePlayback } from '../features/movies/useMoviePlayback'
 import { useI18n } from '../i18n/useI18n'
 
 const STREAM_STEPS = ['torrent', 'download', 'stream', 'cache']
@@ -11,8 +13,8 @@ function MovieDetailsPage() {
   const { t } = useI18n()
   const [movie, setMovie] = useState(null)
   const [errorId, setErrorId] = useState(null)
-  const [streamStatus, setStreamStatus] = useState('idle')
   const [selectedSubtitle, setSelectedSubtitle] = useState('')
+  const playback = useMoviePlayback(movieId)
 
   useEffect(() => {
     let active = true
@@ -23,7 +25,6 @@ function MovieDetailsPage() {
           return
         }
         setMovie(data)
-        setStreamStatus('idle')
         setSelectedSubtitle(data.subtitles?.[0] || '')
         setErrorId(null)
       })
@@ -76,14 +77,7 @@ function MovieDetailsPage() {
     ? movie.genres.join(' / ')
     : movie.genre || t('movieDetails.unknownGenre')
 
-  function handlePreparePlayback() {
-    if (streamStatus === 'preparing') return
-
-    setStreamStatus('preparing')
-    window.setTimeout(() => {
-      setStreamStatus('ready')
-    }, 900)
-  }
+  const isPreparing = playback.status === 'preparing' || playback.status === 'buffering'
 
   return (
     <section className="space-y-10">
@@ -148,34 +142,44 @@ function MovieDetailsPage() {
 
       <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black">
-          <div className="flex aspect-video items-center justify-center bg-[radial-gradient(circle_at_center,_rgba(239,68,68,0.16),_rgba(9,9,11,0.96)_48%,_#000_100%)]">
-            <div className="max-w-md px-6 text-center">
-              <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border border-red-400/40 bg-red-500/15 text-3xl text-white shadow-[0_0_60px_rgba(239,68,68,0.25)]">
-                ▶
-              </div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
-                {t('movieDetails.player')}
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-white">
-                {t(`movieDetails.streamStatus.${streamStatus}`)}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-zinc-500">
-                {t('movieDetails.streamPlaceholder')}
-              </p>
-              <button
-                className="mt-6 rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-70"
-                type="button"
-                disabled={streamStatus === 'preparing'}
-                onClick={handlePreparePlayback}
-              >
-                {streamStatus === 'ready'
-                  ? t('movieDetails.playNow')
-                  : streamStatus === 'preparing'
+          {playback.playlistUrl ? (
+            <HlsPlayer
+              src={playback.playlistUrl}
+              authToken={playback.authToken}
+              poster={movie.coverUrl}
+              onStatus={playback.handlePlayerStatus}
+              onError={playback.handlePlayerError}
+            />
+          ) : (
+            <div className="flex aspect-video items-center justify-center bg-[radial-gradient(circle_at_center,_rgba(239,68,68,0.16),_rgba(9,9,11,0.96)_48%,_#000_100%)]">
+              <div className="max-w-md px-6 text-center">
+                <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border border-red-400/40 bg-red-500/15 text-3xl text-white shadow-[0_0_60px_rgba(239,68,68,0.25)]">
+                  ▶
+                </div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
+                  {t('movieDetails.player')}
+                </p>
+                <p className="mt-3 text-2xl font-semibold text-white">
+                  {t(`movieDetails.streamStatus.${playback.status}`)}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-zinc-500">
+                  {playback.status === 'error' && playback.errorMessage
+                    ? playback.errorMessage
+                    : t('movieDetails.streamPlaceholder')}
+                </p>
+                <button
+                  className="mt-6 rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  type="button"
+                  disabled={isPreparing}
+                  onClick={playback.start}
+                >
+                  {isPreparing
                     ? t('movieDetails.preparingPlayback')
                     : t('movieDetails.preparePlayback')}
-              </button>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid gap-3 border-t border-zinc-900 bg-zinc-950 p-4 sm:grid-cols-4">
             {STREAM_STEPS.map((step, index) => (
