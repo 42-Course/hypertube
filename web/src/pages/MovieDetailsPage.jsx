@@ -81,7 +81,7 @@ function MovieDetailsPage() {
   const isPreparing = playback.status === 'preparing' || playback.status === 'buffering'
 
   return (
-    <section className="space-y-10">
+    <section className="space-y-7 sm:space-y-10">
       <Link
         className="inline-flex text-sm font-medium text-zinc-400 transition hover:text-white"
         to="/movies"
@@ -89,8 +89,8 @@ function MovieDetailsPage() {
         {t('movieDetails.backToCatalog')}
       </Link>
 
-      <section className="grid gap-8 lg:grid-cols-[340px_1fr]">
-        <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+      <section className="grid gap-6 lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
+        <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 sm:max-w-[280px] lg:max-w-none">
           {movie.coverUrl ? (
             <img
               className="h-full w-full object-cover"
@@ -106,7 +106,7 @@ function MovieDetailsPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
             {genres}
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-6xl">
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
             {movie.title}
           </h1>
           <div className="mt-5 flex flex-wrap gap-3 text-sm text-zinc-300">
@@ -128,11 +128,11 @@ function MovieDetailsPage() {
             </span>
           </div>
           {movie.summary ? (
-            <p className="mt-6 max-w-3xl text-base leading-7 text-zinc-400">
+            <p className="mt-5 max-w-3xl text-sm leading-6 text-zinc-400 sm:text-base sm:leading-7">
               {movie.summary}
             </p>
           ) : (
-            <p className="mt-6 max-w-3xl text-base leading-7 text-zinc-600">
+            <p className="mt-5 max-w-3xl text-sm leading-6 text-zinc-600 sm:text-base sm:leading-7">
               {t('movieDetails.noSummary')}
             </p>
           )}
@@ -180,7 +180,7 @@ function MovieDetailsPage() {
             </div>
           )}
 
-          <div className="grid gap-3 border-t border-zinc-900 bg-zinc-950 p-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 border-t border-zinc-900 bg-zinc-950 p-3 sm:grid-cols-4 sm:p-4">
             {STREAM_STEPS.map((step, index) => (
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-3" key={step}>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-300">

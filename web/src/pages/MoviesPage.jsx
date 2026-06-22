@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import MovieCard from '../features/movies/MovieCard'
 import MovieFilters from '../features/movies/MovieFilters'
 import MovieSearch from '../features/movies/MovieSearch'
-import { searchMovies } from '../features/movies/moviesApi'
+import { fetchMovies, searchMovies } from '../features/movies/moviesApi'
 import { getMoviesPerPage } from '../features/settings/settingsStorage'
 import { useI18n } from '../i18n/useI18n'
 
@@ -11,17 +11,21 @@ const FIRST_PAGE = 1
 const SKELETON_CARD_COUNT = 8
 const SEARCH_DEBOUNCE_MS = 800
 const SEARCH_PENDING_INDICATOR_MS = 250
+const MOVIE_SOURCES = {
+  local: 'local',
+  online: 'online',
+}
 
 function MovieCardSkeleton() {
   return (
     <article className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/70">
       <div className="aspect-[2/3] animate-pulse bg-zinc-800/70" />
-      <div className="space-y-3 p-4">
+      <div className="space-y-2 p-3 sm:space-y-3 sm:p-4">
         <div className="h-4 w-4/5 animate-pulse rounded bg-zinc-800" />
         <div className="h-3 w-2/5 animate-pulse rounded bg-zinc-800" />
         <div className="flex items-center justify-between pt-1">
-          <div className="h-7 w-16 animate-pulse rounded bg-zinc-800" />
-          <div className="h-8 w-20 animate-pulse rounded bg-zinc-800" />
+          <div className="h-6 w-12 animate-pulse rounded bg-zinc-800 sm:h-7 sm:w-16" />
+          <div className="h-7 w-14 animate-pulse rounded bg-zinc-800 sm:h-8 sm:w-20" />
         </div>
       </div>
     </article>
@@ -32,6 +36,10 @@ function MoviesPage() {
   const { t } = useI18n()
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQueryParam = searchParams.get('query')?.trim() || ''
+  const movieSourceParam =
+    searchParams.get('source') === MOVIE_SOURCES.online
+      ? MOVIE_SOURCES.online
+      : MOVIE_SOURCES.local
   const loadMoreRef = useRef(null)
   const requestIdRef = useRef(0)
   const [searchQuery, setSearchQuery] = useState(searchQueryParam)
@@ -60,6 +68,8 @@ function MoviesPage() {
   const shouldShowReplacingSkeletons = isReplacingMovies || hasPendingSearchQuery
   const activeSearchQuery = submittedSearchQuery.trim()
   const hasSearchQuery = activeSearchQuery.length > 0
+  const isLocalSource = movieSourceParam === MOVIE_SOURCES.local
+  const pageTitle = isLocalSource ? t('movies.localTitle') : t('movies.onlineTitle')
 
   const updateSearchParam = useCallback(
     (nextSearchQuery, options = {}) => {
@@ -73,6 +83,21 @@ function MoviesPage() {
       }
 
       setSearchParams(nextParams, { replace: options.replace ?? true })
+    },
+    [searchParams, setSearchParams],
+  )
+
+  const updateSourceParam = useCallback(
+    (nextSource) => {
+      const nextParams = new URLSearchParams(searchParams)
+
+      if (nextSource === MOVIE_SOURCES.online) {
+        nextParams.set('source', MOVIE_SOURCES.online)
+      } else {
+        nextParams.delete('source')
+      }
+
+      setSearchParams(nextParams, { replace: false })
     },
     [searchParams, setSearchParams],
   )
@@ -102,7 +127,8 @@ function MoviesPage() {
       }
 
       try {
-        const result = await searchMovies({
+        const loadMoviesFromSource = isLocalSource ? fetchMovies : searchMovies
+        const result = await loadMoviesFromSource({
           page: nextPage,
           perPage: moviesPerPage,
           query: activeSearchQuery,
@@ -141,6 +167,7 @@ function MoviesPage() {
       filters.genre,
       filters.rating,
       filters.year,
+      isLocalSource,
       moviesPerPage,
       sort,
     ],
@@ -208,6 +235,12 @@ function MoviesPage() {
     setSort(nextSort)
   }
 
+  function handleSourceChange(nextSource) {
+    setSearchSource('manual')
+    setIsSearchDebouncing(false)
+    updateSourceParam(nextSource)
+  }
+
   useEffect(() => {
     const loadMoreElement = loadMoreRef.current
 
@@ -231,13 +264,13 @@ function MoviesPage() {
 
   return (
     <>
-      <section className="py-14">
+      <section className="py-8 sm:py-14">
         <div className="max-w-3xl">
           <div>
             <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-zinc-500">
               {t('movies.catalog')}
             </p>
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+            <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-white sm:text-5xl">
               {t('movies.heroTitle')}
             </h1>
           </div>
@@ -245,6 +278,30 @@ function MoviesPage() {
       </section>
 
       <section className="space-y-4">
+        <div className="grid grid-cols-2 gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-1.5 sm:inline-grid">
+          <button
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              isLocalSource
+                ? 'bg-red-500 text-white'
+                : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+            }`}
+            type="button"
+            onClick={() => handleSourceChange(MOVIE_SOURCES.local)}
+          >
+            {t('movies.sources.local')}
+          </button>
+          <button
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              !isLocalSource
+                ? 'bg-red-500 text-white'
+                : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+            }`}
+            type="button"
+            onClick={() => handleSourceChange(MOVIE_SOURCES.online)}
+          >
+            {t('movies.sources.online')}
+          </button>
+        </div>
         <MovieSearch
           isSearchPending={
             isSearchDebouncing ||
@@ -266,11 +323,7 @@ function MoviesPage() {
       <section className="py-10">
         <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
-            <h2 className="text-2xl font-semibold text-white">{t('movies.popular')}</h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              {t('movies.resultsCount', { count: movies.length })} ·{' '}
-              {hasSearchQuery ? t('movies.discoveryNotice') : t('movies.popularNotice')}
-            </p>
+            <h2 className="text-2xl font-semibold text-white">{pageTitle}</h2>
           </div>
           <p className="text-sm text-zinc-500">
             {t('movies.sort.label')}: {sortLabel}
@@ -278,7 +331,7 @@ function MoviesPage() {
         </div>
 
         {shouldShowReplacingSkeletons ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: SKELETON_CARD_COUNT }, (_, index) => (
               <MovieCardSkeleton key={index} />
             ))}
@@ -288,16 +341,20 @@ function MoviesPage() {
             <h3 className="text-xl font-semibold text-white">
               {hasSearchQuery
                 ? t('movies.emptySearchTitle')
-                : t('movies.emptyPopularTitle')}
+                : isLocalSource
+                  ? t('movies.emptyCatalogTitle')
+                  : t('movies.emptyPopularTitle')}
             </h3>
             <p className="mt-2 text-sm text-zinc-500">
               {hasSearchQuery
                 ? t('movies.emptySearchDescription')
-                : t('movies.emptyPopularDescription')}
+                : isLocalSource
+                  ? t('movies.emptyCatalogDescription')
+                  : t('movies.emptyPopularDescription')}
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {movies.map((movie) => (
               <MovieCard key={movie.id} movie={movie} />
             ))}

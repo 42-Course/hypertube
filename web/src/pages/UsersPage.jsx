@@ -40,20 +40,20 @@ function UsersPage() {
   }, [t])
 
   return (
-    <section className="py-10">
+    <section className="py-5 sm:py-10">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
             {t('users.label')}
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white">
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
             {t('users.title')}
           </h1>
         </div>
       </div>
 
       {isLoading && (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <article
               className="rounded-3xl border border-zinc-800 bg-zinc-900/60 p-5"
@@ -85,7 +85,7 @@ function UsersPage() {
       )}
 
       {!isLoading && !error && users.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {users.map((user) => (
             <article
               className="group rounded-3xl border border-zinc-800 bg-zinc-900/60 p-5 transition hover:-translate-y-1 hover:border-red-400/60 hover:bg-zinc-900"
