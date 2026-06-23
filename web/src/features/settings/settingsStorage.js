@@ -1,35 +1,40 @@
-const SETTINGS_KEY = 'hypertube_settings'
-const DEFAULT_MOVIES_PER_PAGE = 20
-export const MOVIES_PER_PAGE_OPTIONS = [10, 20, 40]
+// Persisted client-side preferences (localStorage). These are per-browser and
+// do not require a round-trip to the API.
 
-function readSettings() {
+export const MOVIE_SOURCES = {
+  local: 'local',
+  online: 'online',
+}
+
+const MOVIE_SOURCE_STORAGE_KEY = 'hypertube.movieSource'
+const DEFAULT_MOVIE_SOURCE = MOVIE_SOURCES.local
+
+function isValidMovieSource(value) {
+  return value === MOVIE_SOURCES.local || value === MOVIE_SOURCES.online
+}
+
+// Read the preferred movie search source ('local' = server catalog,
+// 'online' = external providers). Falls back to the default when unset or
+// when storage is unavailable (e.g. private mode).
+export function getMovieSource() {
   try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}
+    const stored = window.localStorage.getItem(MOVIE_SOURCE_STORAGE_KEY)
+    return isValidMovieSource(stored) ? stored : DEFAULT_MOVIE_SOURCE
   } catch {
-    return {}
+    return DEFAULT_MOVIE_SOURCE
   }
 }
 
-function saveSettings(settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
-}
+// Persist the preferred movie search source. Returns the value that ended up
+// being stored (the default when the input is invalid).
+export function saveMovieSource(value) {
+  const nextValue = isValidMovieSource(value) ? value : DEFAULT_MOVIE_SOURCE
 
-function normalizeMoviesPerPage(value) {
-  const numericValue = Number(value)
+  try {
+    window.localStorage.setItem(MOVIE_SOURCE_STORAGE_KEY, nextValue)
+  } catch {
+    // Ignore storage failures: the preference simply won't persist.
+  }
 
-  return MOVIES_PER_PAGE_OPTIONS.includes(numericValue)
-    ? numericValue
-    : DEFAULT_MOVIES_PER_PAGE
-}
-
-export function getMoviesPerPage() {
-  return normalizeMoviesPerPage(readSettings().moviesPerPage)
-}
-
-export function saveMoviesPerPage(value) {
-  const settings = readSettings()
-  const moviesPerPage = normalizeMoviesPerPage(value)
-
-  saveSettings({ ...settings, moviesPerPage })
-  return moviesPerPage
+  return nextValue
 }

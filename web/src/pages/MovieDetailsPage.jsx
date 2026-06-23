@@ -3,7 +3,11 @@ import { Link, useParams } from 'react-router-dom'
 import HlsPlayer from '../features/movies/HlsPlayer'
 import MovieComments from '../features/movies/MovieComments'
 import MoviePosterFallback from '../features/movies/MoviePosterFallback'
-import { getMovieDetails } from '../features/movies/moviesApi'
+import {
+  getMovieDetails,
+  markMovieUnwatched,
+  markMovieWatched,
+} from '../features/movies/moviesApi'
 import { useMoviePlayback } from '../features/movies/useMoviePlayback'
 import { useI18n } from '../i18n/useI18n'
 
@@ -14,6 +18,8 @@ function MovieDetailsPage() {
   const { t } = useI18n()
   const [movie, setMovie] = useState(null)
   const [errorId, setErrorId] = useState(null)
+  const [watchStatusError, setWatchStatusError] = useState('')
+  const [isUpdatingWatchStatus, setIsUpdatingWatchStatus] = useState(false)
   const [selectedSubtitle, setSelectedSubtitle] = useState('')
   const playback = useMoviePlayback(movieId)
 
@@ -77,11 +83,47 @@ function MovieDetailsPage() {
   const genres = movie.genres?.length
     ? movie.genres.join(' / ')
     : movie.genre || t('movieDetails.unknownGenre')
+  const hasCredits =
+    Boolean(movie.director) || movie.producers.length > 0 || movie.cast.length > 0
 
   const isPreparing = playback.status === 'preparing' || playback.status === 'buffering'
 
+  async function handlePreparePlayback() {
+    const isPlaybackReady = await playback.start()
+
+    if (!isPlaybackReady || movie.watched) {
+      return
+    }
+
+    setIsUpdatingWatchStatus(true)
+    setWatchStatusError('')
+
+    try {
+      const updatedMovie = await markMovieWatched(movie.id)
+      setMovie(updatedMovie)
+    } catch {
+      setWatchStatusError(t('movieDetails.watchStatusError'))
+    } finally {
+      setIsUpdatingWatchStatus(false)
+    }
+  }
+
+  async function handleMarkUnwatched() {
+    setIsUpdatingWatchStatus(true)
+    setWatchStatusError('')
+
+    try {
+      const updatedMovie = await markMovieUnwatched(movie.id)
+      setMovie(updatedMovie)
+    } catch {
+      setWatchStatusError(t('movieDetails.watchStatusError'))
+    } finally {
+      setIsUpdatingWatchStatus(false)
+    }
+  }
+
   return (
-    <section className="space-y-10">
+    <section className="space-y-7 sm:space-y-10">
       <Link
         className="inline-flex text-sm font-medium text-zinc-400 transition hover:text-white"
         to="/movies"
@@ -89,8 +131,8 @@ function MovieDetailsPage() {
         {t('movieDetails.backToCatalog')}
       </Link>
 
-      <section className="grid gap-8 lg:grid-cols-[340px_1fr]">
-        <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+      <section className="grid gap-6 lg:grid-cols-[300px_1fr] xl:grid-cols-[340px_1fr]">
+        <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 sm:max-w-[280px] lg:max-w-none">
           {movie.coverUrl ? (
             <img
               className="h-full w-full object-cover"
@@ -106,7 +148,7 @@ function MovieDetailsPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
             {genres}
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-6xl">
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl">
             {movie.title}
           </h1>
           <div className="mt-5 flex flex-wrap gap-3 text-sm text-zinc-300">
@@ -128,18 +170,35 @@ function MovieDetailsPage() {
             </span>
           </div>
           {movie.summary ? (
-            <p className="mt-6 max-w-3xl text-base leading-7 text-zinc-400">
+            <p className="mt-5 max-w-3xl text-sm leading-6 text-zinc-400 sm:text-base sm:leading-7">
               {movie.summary}
             </p>
           ) : (
-            <p className="mt-6 max-w-3xl text-base leading-7 text-zinc-600">
+            <p className="mt-5 max-w-3xl text-sm leading-6 text-zinc-600 sm:text-base sm:leading-7">
               {t('movieDetails.noSummary')}
             </p>
           )}
+          {movie.watched ? (
+            <div className="mt-5">
+              <button
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-red-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                type="button"
+                disabled={isUpdatingWatchStatus}
+                onClick={handleMarkUnwatched}
+              >
+                {isUpdatingWatchStatus
+                  ? t('movieDetails.updatingWatchStatus')
+                  : t('movieDetails.markUnwatched')}
+              </button>
+            </div>
+          ) : null}
+          {watchStatusError ? (
+            <p className="mt-3 text-sm text-red-300">{watchStatusError}</p>
+          ) : null}
         </div>
       </section>
 
-      <section className="grid items-start gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black">
           {playback.playlistUrl ? (
             <HlsPlayer
@@ -170,7 +229,7 @@ function MovieDetailsPage() {
                   className="mt-6 rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-70"
                   type="button"
                   disabled={isPreparing}
-                  onClick={playback.start}
+                  onClick={handlePreparePlayback}
                 >
                   {isPreparing
                     ? t('movieDetails.preparingPlayback')
@@ -180,7 +239,7 @@ function MovieDetailsPage() {
             </div>
           )}
 
-          <div className="grid gap-3 border-t border-zinc-900 bg-zinc-950 p-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 border-t border-zinc-900 bg-zinc-950 p-3 sm:grid-cols-4 sm:p-4">
             {STREAM_STEPS.map((step, index) => (
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-3" key={step}>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-300">
@@ -225,57 +284,7 @@ function MovieDetailsPage() {
                   {movie.rating || t('movieDetails.notAvailable')}
                 </dd>
               </div>
-              {movie.director ? (
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-zinc-500">{t('movieDetails.director')}</dt>
-                  <dd className="font-medium text-white">{movie.director}</dd>
-                </div>
-              ) : null}
-              {movie.producers?.length ? (
-                <div className="flex items-center justify-between gap-4">
-                  <dt className="text-zinc-500">{t('movieDetails.producers')}</dt>
-                  <dd className="text-right font-medium text-white">
-                    {movie.producers.join(', ')}
-                  </dd>
-                </div>
-              ) : null}
             </dl>
-          </div>
-
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
-            <h2 className="text-lg font-semibold text-white">{t('movieDetails.cast')}</h2>
-            {movie.cast?.length ? (
-              <ul className="mt-4 space-y-3">
-                {movie.cast.map((member) => (
-                  <li className="flex items-center gap-3" key={`${member.name}-${member.character}`}>
-                    {member.profileUrl ? (
-                      <img
-                        className="h-10 w-10 flex-none rounded-full object-cover"
-                        src={member.profileUrl}
-                        alt={member.name}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-zinc-800 text-xs font-semibold text-zinc-400">
-                        {member.name?.slice(0, 1)}
-                      </span>
-                    )}
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-white">
-                        {member.name}
-                      </span>
-                      {member.character ? (
-                        <span className="block truncate text-xs text-zinc-500">
-                          {member.character}
-                        </span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-4 text-sm text-zinc-500">{t('movieDetails.noCast')}</p>
-            )}
           </div>
 
           {movie.genres.length > 0 ? (
@@ -291,6 +300,53 @@ function MovieDetailsPage() {
                   </span>
                 ))}
               </div>
+            </div>
+          ) : null}
+
+          {hasCredits ? (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
+              <h2 className="text-lg font-semibold text-white">{t('movieDetails.credits')}</h2>
+              <dl className="mt-4 space-y-3 text-sm">
+                {movie.director ? (
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="text-zinc-500">{t('movieDetails.director')}</dt>
+                    <dd className="text-right font-medium text-white">{movie.director}</dd>
+                  </div>
+                ) : null}
+                {movie.producers.length > 0 ? (
+                  <div className="flex items-start justify-between gap-4">
+                    <dt className="text-zinc-500">{t('movieDetails.producers')}</dt>
+                    <dd className="text-right font-medium text-white">
+                      {movie.producers.join(', ')}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+
+              {movie.cast.length > 0 ? (
+                <div className="mt-5">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    {t('movieDetails.cast')}
+                  </h3>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {movie.cast.slice(0, 8).map((member) => (
+                      <div
+                        className="rounded-xl border border-zinc-800 bg-zinc-950 p-3"
+                        key={`${member.name}-${member.character || 'cast'}`}
+                      >
+                        <p className="line-clamp-1 text-sm font-semibold text-white">
+                          {member.name}
+                        </p>
+                        {member.character ? (
+                          <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
+                            {member.character}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 

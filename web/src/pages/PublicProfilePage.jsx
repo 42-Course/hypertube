@@ -91,7 +91,7 @@ function PublicProfilePage() {
   const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ')
 
   return (
-    <section className="mx-auto max-w-3xl py-12">
+    <section className="mx-auto max-w-3xl py-5 sm:py-12">
       <Link
         className="inline-flex text-sm font-medium text-zinc-400 transition hover:text-white"
         to={backTarget}
@@ -101,8 +101,8 @@ function PublicProfilePage() {
 
       <article className="mt-6 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/60">
         <div className="h-32 bg-gradient-to-r from-red-500/30 via-zinc-900 to-zinc-800" />
-        <div className="-mt-16 px-6 pb-8 text-center sm:px-10">
-          <div className="mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-zinc-950 bg-zinc-800 text-4xl font-semibold text-white">
+        <div className="-mt-14 px-5 pb-7 text-center sm:-mt-16 sm:px-10 sm:pb-8">
+          <div className="mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-4 border-zinc-950 bg-zinc-800 text-4xl font-semibold text-white sm:h-32 sm:w-32">
             {profile.profilePictureUrl ? (
               <img
                 className="h-full w-full object-cover"
@@ -117,7 +117,7 @@ function PublicProfilePage() {
           <p className="mt-6 text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
             {t('publicProfile.label')}
           </p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white">
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
             {profile.username}
           </h1>
           {fullName ? (
@@ -143,8 +143,8 @@ function PublicProfilePage() {
         </div>
       </article>
 
-      <section className="mt-6 rounded-3xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <h2 className="text-2xl font-semibold text-white">
+      <section className="mt-6 rounded-3xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-6">
+        <h2 className="text-xl font-semibold text-white sm:text-2xl">
           {t('publicProfile.watchedMovies')}
         </h2>
 
@@ -181,12 +181,12 @@ function PublicProfilePage() {
               >
                 {movie.coverUrl ? (
                   <img
-                    className="h-36 w-full object-cover transition group-hover:scale-105"
+                    className="h-32 w-full object-cover transition group-hover:scale-105 sm:h-36"
                     src={movie.coverUrl}
                     alt={t('movies.card.posterAlt', { title: movie.title })}
                   />
                 ) : (
-                  <MoviePosterFallback className="h-36" title={movie.title} />
+                  <MoviePosterFallback className="h-32 sm:h-36" title={movie.title} />
                 )}
                 <div className="p-4">
                   <h3 className="line-clamp-2 font-semibold text-white">{movie.title}</h3>

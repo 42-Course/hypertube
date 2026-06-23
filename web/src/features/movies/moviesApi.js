@@ -14,14 +14,6 @@ function normalizeMovie(movie) {
   }
 }
 
-function normalizeCastMember(member) {
-  return {
-    name: member.name,
-    character: member.character || null,
-    profileUrl: member.profile_url || null,
-  }
-}
-
 function normalizeMovieDetail(movie) {
   return {
     ...normalizeMovie(movie),
@@ -29,9 +21,9 @@ function normalizeMovieDetail(movie) {
     duration: movie.duration || null,
     subtitles: movie.subtitles || [],
     commentsCount: movie.comments_count || 0,
-    cast: (movie.cast || []).map(normalizeCastMember),
-    director: movie.director || null,
-    producers: movie.producers || [],
+    cast: Array.isArray(movie.cast) ? movie.cast : [],
+    director: movie.director || '',
+    producers: Array.isArray(movie.producers) ? movie.producers : [],
   }
 }
 
@@ -46,7 +38,25 @@ function normalizeComment(comment) {
   }
 }
 
-function buildMovieParams({ page, perPage, query, genre, year, rating, sort }) {
+function buildMovieParams({
+  page,
+  perPage,
+  query,
+  genre,
+  minYear,
+  maxYear,
+  rating,
+  sort,
+}) {
+  const selectedYears = [minYear, maxYear]
+    .map((year) => Number(year))
+    .filter((year) => Number.isInteger(year))
+  const firstSelectedYear = selectedYears.length > 0
+    ? Math.min(...selectedYears)
+    : undefined
+  const lastSelectedYear = selectedYears.length > 0
+    ? Math.max(...selectedYears)
+    : undefined
   const params = {
     page,
     per_page: perPage,
@@ -54,27 +64,34 @@ function buildMovieParams({ page, perPage, query, genre, year, rating, sort }) {
     sort: sort === 'title' ? 'name' : sort,
     order: sort === 'title' ? 'asc' : 'desc',
     genre: genre === 'all' ? undefined : genre,
+    min_year: firstSelectedYear,
+    max_year: lastSelectedYear,
     min_rating: rating === 'all' ? undefined : rating,
-  }
-
-  if (year === '2020') {
-    params.min_year = 2020
-  }
-
-  if (year === '2010') {
-    params.min_year = 2010
-    params.max_year = 2019
-  }
-
-  if (year === 'before-2010') {
-    params.max_year = 2009
   }
 
   return params
 }
 
-export async function fetchMovies({ page, perPage, query, genre, year, rating, sort }) {
-  const params = buildMovieParams({ page, perPage, query, genre, year, rating, sort })
+export async function fetchMovies({
+  page,
+  perPage,
+  query,
+  genre,
+  minYear,
+  maxYear,
+  rating,
+  sort,
+}) {
+  const params = buildMovieParams({
+    page,
+    perPage,
+    query,
+    genre,
+    minYear,
+    maxYear,
+    rating,
+    sort,
+  })
   const { data } = await client.get('/api/v1/movies', { params })
   const totalPages = data.total_pages || 1
 
@@ -93,8 +110,26 @@ export async function getMovieDetails(movieId) {
   return normalizeMovieDetail(data)
 }
 
-export async function searchMovies({ page, perPage, query, genre, year, rating, sort }) {
-  const params = buildMovieParams({ page, perPage, query, genre, year, rating, sort })
+export async function searchMovies({
+  page,
+  perPage,
+  query,
+  genre,
+  minYear,
+  maxYear,
+  rating,
+  sort,
+}) {
+  const params = buildMovieParams({
+    page,
+    perPage,
+    query,
+    genre,
+    minYear,
+    maxYear,
+    rating,
+    sort,
+  })
   const { data } = await client.get('/api/v1/movies/search', { params })
   const movies = (data.movies || []).map(normalizeMovie)
 
@@ -107,6 +142,16 @@ export async function searchMovies({ page, perPage, query, genre, year, rating, 
 
 export async function fetchMovieDetails(movieId) {
   const { data } = await client.get(`/api/v1/movies/${movieId}`)
+  return normalizeMovieDetail(data)
+}
+
+export async function markMovieWatched(movieId) {
+  const { data } = await client.post(`/api/v1/movies/${movieId}/watched`)
+  return normalizeMovieDetail(data)
+}
+
+export async function markMovieUnwatched(movieId) {
+  const { data } = await client.delete(`/api/v1/movies/${movieId}/watched`)
   return normalizeMovieDetail(data)
 }
 

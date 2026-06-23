@@ -41,6 +41,7 @@ RSpec.describe "Users API", type: :request do
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data).to be_an(Array)
+          expect(data.first.keys).to include("id", "username", "profile_picture_url")
         end
       end
 

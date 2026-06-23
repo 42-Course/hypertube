@@ -89,12 +89,12 @@ function ActivityPage() {
   }
 
   return (
-    <section className="py-10">
+    <section className="py-5 sm:py-10">
       <div className="mb-8">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
           {t('activity.label')}
         </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white">
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
           {t('activity.title')}
         </h1>
       </div>
