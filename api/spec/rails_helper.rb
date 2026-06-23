@@ -77,4 +77,12 @@ end
 
 RSpec.configure do |config|
   config.include FactoryBot::Syntax::Methods
+
+  # Default OpenSubtitles to a no-op so specs never make real HTTP calls when an
+  # API key happens to be present in the environment. Specs that exercise it set
+  # their own expectations, which override these.
+  config.before do
+    allow_any_instance_of(MovieSources::OpenSubtitles).to receive(:languages).and_return([])
+    allow_any_instance_of(MovieSources::OpenSubtitles).to receive(:vtt).and_return(nil)
+  end
 end

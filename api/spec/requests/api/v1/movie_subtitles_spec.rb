@@ -1,22 +1,24 @@
 require "rails_helper"
 
 RSpec.describe "Movie subtitles API", type: :request do
-  let(:user)  { create(:user) }
+  let(:user)  { create(:user, preferred_language: "en") }
   let(:token) { create(:doorkeeper_access_token, resource_owner_id: user.id) }
   let(:auth)  { { "Authorization" => "Bearer #{token.token}" } }
 
   describe "GET /api/v1/movies/:id/subtitles" do
-    it "returns the cached subtitle languages" do
-      movie = create(:movie, subtitle_languages: %w[en fr])
+    it "returns availability for the viewer's preferred language only" do
+      movie = create(:movie)
+      expect_any_instance_of(MovieSources::OpenSubtitles)
+        .to receive(:languages).with(an_instance_of(Movie), language: "en").and_return(%w[en])
 
       get "/api/v1/movies/#{movie.id}/subtitles", headers: auth
 
       expect(response).to have_http_status(:ok)
-      expect(JSON.parse(response.body)["languages"]).to eq(%w[en fr])
+      expect(JSON.parse(response.body)["languages"]).to eq(%w[en])
     end
 
     it "returns no languages when OpenSubtitles is unavailable" do
-      movie = create(:movie, subtitle_languages: [])
+      movie = create(:movie)
 
       get "/api/v1/movies/#{movie.id}/subtitles", headers: auth
 
@@ -32,7 +34,7 @@ RSpec.describe "Movie subtitles API", type: :request do
   end
 
   describe "GET /api/v1/movies/:id/subtitles/:language" do
-    it "serves WebVTT converted from the source subtitle" do
+    it "serves WebVTT for the preferred language" do
       movie = create(:movie)
       allow_any_instance_of(MovieSources::OpenSubtitles)
         .to receive(:vtt).with(an_instance_of(Movie), "en")
@@ -45,7 +47,16 @@ RSpec.describe "Movie subtitles API", type: :request do
       expect(response.body).to start_with("WEBVTT")
     end
 
-    it "returns 404 when the subtitle is unavailable" do
+    it "refuses a language that is not the viewer's preferred one" do
+      movie = create(:movie)
+      expect_any_instance_of(MovieSources::OpenSubtitles).not_to receive(:vtt)
+
+      get "/api/v1/movies/#{movie.id}/subtitles/fr", headers: auth
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns 404 when the preferred-language subtitle is unavailable" do
       movie = create(:movie)
       allow_any_instance_of(MovieSources::OpenSubtitles).to receive(:vtt).and_return(nil)
 

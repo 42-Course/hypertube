@@ -9,6 +9,13 @@ const MAX_FALLBACK_RETRIES = 2
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// An Error carrying a machine-readable code the UI can translate.
+function codedError(message, code) {
+  const error = new Error(message)
+  error.code = code
+  return error
+}
+
 function firstPlayableVideo(files) {
   return (files || []).find((file) => file.kind === 'video' && file.supported !== false)
 }
@@ -37,7 +44,7 @@ async function pollUntil({ control, fn, done, timeoutMs }) {
       return outcome
     }
     if (Date.now() > deadline) {
-      throw new Error('Timed out waiting for the stream.')
+      throw codedError('Timed out waiting for the stream.', 'timeout')
     }
     await sleep(POLL_INTERVAL_MS)
   }
@@ -55,6 +62,7 @@ export function useMoviePlayback(movieId, { onPlaybackStarted } = {}) {
   const [playlistUrl, setPlaylistUrl] = useState(null)
   const [authToken, setAuthToken] = useState(null)
   const [errorMessage, setErrorMessage] = useState(null)
+  const [errorCode, setErrorCode] = useState(null)
   const [snapshot, setSnapshot] = useState(null)
   const [mode, setMode] = useState(null)
   // Global movie timeline: an interactive HLS session starts at 0 but represents
@@ -116,6 +124,7 @@ export function useMoviePlayback(movieId, { onPlaybackStarted } = {}) {
     }
     if (control.retries >= MAX_FALLBACK_RETRIES) {
       setStatus('error')
+      setErrorCode(error?.code || 'torrent_failed')
       setErrorMessage(error?.message || 'Playback failed.')
       return
     }
@@ -171,6 +180,7 @@ export function useMoviePlayback(movieId, { onPlaybackStarted } = {}) {
     setStatus('preparing')
     setPlaylistUrl(null)
     setErrorMessage(null)
+    setErrorCode(null)
     setAuthToken(null)
     setMode(null)
     setSessionStartSeconds(0)
@@ -183,6 +193,7 @@ export function useMoviePlayback(movieId, { onPlaybackStarted } = {}) {
       }
       if (!ticket || !mediaId || !streamingUrl) {
         setStatus('error')
+        setErrorCode('not_configured')
         setErrorMessage('Streaming is not configured.')
         return false
       }
@@ -199,7 +210,7 @@ export function useMoviePlayback(movieId, { onPlaybackStarted } = {}) {
         fn: () => client.status(),
         done: (current) => {
           if (current.state === 'failed') {
-            throw new Error('The torrent failed to load.')
+            throw codedError('The torrent failed to load.', 'torrent_failed')
           }
           if (current.vod?.ready && current.vod.playlist_url) {
             return { vodPlaylistUrl: current.vod.playlist_url }
@@ -250,6 +261,7 @@ export function useMoviePlayback(movieId, { onPlaybackStarted } = {}) {
     } catch (error) {
       if (!control.cancelled) {
         setStatus('error')
+        setErrorCode(error.code || 'generic')
         setErrorMessage(error.message)
       }
       return false
@@ -384,6 +396,7 @@ export function useMoviePlayback(movieId, { onPlaybackStarted } = {}) {
     playlistUrl,
     authToken,
     errorMessage,
+    errorCode,
     start,
     stop,
     handlePlayerStatus,

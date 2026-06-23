@@ -21,17 +21,20 @@ module MovieSources
       api_key.present?
     end
 
-    # Distinct subtitle languages available for this movie, sorted.
-    def languages(movie)
-      results(movie).filter_map { |item| item.dig("attributes", "language") }.uniq.sort
+    # Subtitle languages available for this movie, restricted to `language` (the
+    # viewer's preferred language). We deliberately fetch only that one language
+    # rather than every language, to respect the OpenSubtitles download quota.
+    # Returns [language] when something is available, otherwise [].
+    def languages(movie, language:)
+      results(movie, language).filter_map { |item| item.dig("attributes", "language") }.uniq.sort
     end
 
-    # WebVTT string for a language, or nil when unavailable. Result is cached
-    # because it costs an OpenSubtitles download quota credit to produce.
+    # WebVTT string for the (preferred) language, or nil when unavailable. Result
+    # is cached because producing it costs an OpenSubtitles download quota credit.
     def vtt(movie, language)
-      return nil unless available?
+      return nil unless available? && language.present?
 
-      match = results(movie).find { |item| item.dig("attributes", "language") == language }
+      match = results(movie, language).find { |item| item.dig("attributes", "language") == language }
       file_id = match&.dig("attributes", "files", 0, "file_id")
       return nil unless file_id
 
@@ -49,24 +52,26 @@ module MovieSources
 
     private
 
-    # The /subtitles search results for this movie's imdb id (cached).
-    def results(movie)
+    # The /subtitles search results for this movie's imdb id, scoped to a single
+    # language (cached per imdb+language).
+    def results(movie, language)
       imdb = imdb_number(movie)
-      return [] unless available? && imdb
+      return [] unless available? && imdb && language.present?
 
-      cache_key = "open_subtitles:search:#{imdb}"
+      cache_key = "open_subtitles:search:#{imdb}:#{language}"
       cached = Rails.cache.read(cache_key)
       return cached if cached
 
-      body = search_request(imdb)
+      body = search_request(imdb, language)
       data = body.is_a?(Hash) ? Array(body["data"]) : []
       Rails.cache.write(cache_key, data, expires_in: CACHE_TTL) if data.present?
       data
     end
 
-    def search_request(imdb)
+    def search_request(imdb, language)
       response = connection.get("subtitles") do |req|
         req.params["imdb_id"] = imdb
+        req.params["languages"] = language
         req.params["order_by"] = "download_count"
       end
       return {} unless response.success?

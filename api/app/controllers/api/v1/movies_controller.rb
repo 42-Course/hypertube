@@ -76,8 +76,7 @@ class Api::V1::MoviesController < ApplicationController
     return render json: { error: "Movie not found" }, status: :not_found unless movie
 
     MovieSources::Aggregator.new.enrich(movie)
-    ensure_subtitle_languages(movie)
-    render json: movie.as_detail(user: current_user)
+    render json: detail_payload(movie)
   end
 
   # POST /api/v1/movies/:id/stream_ticket
@@ -121,7 +120,7 @@ class Api::V1::MoviesController < ApplicationController
   # client sees watched: true.
   def mark_watched
     @movie.mark_watched_by(current_user)
-    render json: @movie.as_detail(user: current_user)
+    render json: detail_payload(@movie)
   end
 
   # DELETE /api/v1/movies/:id/watched
@@ -129,23 +128,29 @@ class Api::V1::MoviesController < ApplicationController
   # Clear the current user's watched mark for this movie. Idempotent.
   def mark_unwatched
     @movie.mark_unwatched_by(current_user)
-    render json: @movie.as_detail(user: current_user)
+    render json: detail_payload(@movie)
   end
 
   # GET /api/v1/movies/:id/subtitles
   #
-  # Subtitle languages available from OpenSubtitles for this movie (cached on the
-  # row). The browser overlays the chosen one as a <track>.
+  # OpenSubtitles availability for the viewer's preferred language only (we never
+  # fetch every language). The browser overlays it as a <track>.
   def subtitles
-    render json: { languages: ensure_subtitle_languages(@movie) }
+    render json: { languages: preferred_subtitle_languages(@movie) }
   end
 
   # GET /api/v1/movies/:id/subtitles/:language
   #
-  # Serve the chosen OpenSubtitles language as WebVTT (converted from SRT). The
-  # SPA fetches this with its bearer token and hands it to a <track> via a blob.
+  # Serve the viewer's preferred-language subtitle as WebVTT (converted from SRT).
+  # Only the preferred language is served, so a request for any other language is
+  # treated as unavailable. The SPA fetches this with its bearer token and hands
+  # it to a <track> via a blob.
   def subtitle
-    vtt = MovieSources::OpenSubtitles.new.vtt(@movie, params[:language])
+    if params[:language] != current_user.preferred_language
+      return render json: { error: "subtitle_unavailable" }, status: :not_found
+    end
+
+    vtt = MovieSources::OpenSubtitles.new.vtt(@movie, current_user.preferred_language)
     if vtt.blank?
       return render json: { error: "subtitle_unavailable" }, status: :not_found
     end
@@ -164,19 +169,22 @@ class Api::V1::MoviesController < ApplicationController
     if seconds.positive? && @movie.duration.blank?
       @movie.update!(duration: (seconds / 60.0).round)
     end
-    render json: @movie.as_detail(user: current_user)
+    render json: detail_payload(@movie)
   end
 
   private
 
-  # Fetch-and-cache the OpenSubtitles language list for a movie. Cached on the
-  # row so the detail endpoint does not make an external call on every view.
-  def ensure_subtitle_languages(movie)
-    return movie.available_subtitles if movie.available_subtitles.present?
+  # Detail payload with OpenSubtitles languages restricted to the viewer's
+  # preferred language (the only language we fetch).
+  def detail_payload(movie)
+    movie.as_detail(user: current_user).merge(subtitles: preferred_subtitle_languages(movie))
+  end
 
-    languages = MovieSources::OpenSubtitles.new.languages(movie)
-    movie.update_column(:subtitle_languages, languages) if languages.present?
-    languages
+  # OpenSubtitles availability for the current user's preferred language only,
+  # cached per (movie, language) inside the source so repeated views do not hit
+  # the external API.
+  def preferred_subtitle_languages(movie)
+    MovieSources::OpenSubtitles.new.languages(movie, language: current_user.preferred_language)
   end
 
   def set_movie

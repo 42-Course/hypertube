@@ -29,6 +29,11 @@ services:
       # across the host gateway for the movie->media handoff. Sinatra's
       # host_authorization otherwise 403s the host.docker.internal Host header.
       PERMITTED_HOSTS: "localhost,127.0.0.1,0.0.0.0,web,transcoder-api,host.docker.internal"
+      # Hypertube API base URL for the download-complete M2M callback. Leave
+      # empty to disable the callback (the API still learns about downloads via
+      # VOD-first playback). Authenticated with a service-scope token signed by
+      # the shared STREAM_TICKET_SECRET.
+      HYPERTUBE_API_URL: "${HYPERTUBE_API_URL:-}"
     volumes: *storage-volumes
     ports:
       # Base mode exposes only the user-facing Sinatra UI.

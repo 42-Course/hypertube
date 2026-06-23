@@ -254,6 +254,24 @@ function MovieDetailsPage() {
   const isDownloading = playback.progress.bytesTotal > 0 && !playback.progress.complete
   const showProgress = isDownloading && !isVod
 
+  // Map the playback error code to a friendly, actionable message (unknown codes
+  // fall back to a generic one rather than leaking a raw axios/HTTP string).
+  const KNOWN_STREAM_ERRORS = [
+    'no_torrent',
+    'streaming_unavailable',
+    'torrent_failed',
+    'timeout',
+    'not_configured',
+  ]
+  const streamErrorMessage =
+    playback.status === 'error'
+      ? t(
+          `movieDetails.streamErrors.${
+            KNOWN_STREAM_ERRORS.includes(playback.errorCode) ? playback.errorCode : 'generic'
+          }`,
+        )
+      : null
+
   async function handlePreparePlayback() {
     await playback.start()
   }
@@ -390,10 +408,12 @@ function MovieDetailsPage() {
                     </p>
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm leading-6 text-zinc-500">
-                    {playback.status === 'error' && playback.errorMessage
-                      ? playback.errorMessage
-                      : t('movieDetails.streamPlaceholder')}
+                  <p
+                    className={`mt-2 text-sm leading-6 ${
+                      streamErrorMessage ? 'text-red-300' : 'text-zinc-500'
+                    }`}
+                  >
+                    {streamErrorMessage || t('movieDetails.streamPlaceholder')}
                   </p>
                 )}
                 {playback.warnings.length > 0 ? (
