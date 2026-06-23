@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Handles the OmniAuth provider callbacks (42 + Google).
+# Handles the OmniAuth provider callbacks (42 + Google + GitHub + Microsoft).
 #
 # This is a browser-facing redirect endpoint, not part of the JSON API, so it
 # is a full ActionController (cookies/session) rather than ActionController::API.
@@ -13,9 +13,11 @@ class Users::OmniauthCallbacksController < ActionController::Base
   skip_forgery_protection
 
   # Devise maps /users/auth/:provider/callback to an action named after the
-  # provider. Both providers share the same handling.
+  # provider. All providers share the same handling.
   def google_oauth2 = handle_callback
   def fortytwo      = handle_callback
+  def github        = handle_callback
+  def microsoft     = handle_callback
 
   # Reached via OmniAuth.config.on_failure (bad state, denied consent, etc.).
   def failure

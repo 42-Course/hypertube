@@ -177,3 +177,13 @@ export function fortyTwoLoginUrl() {
 export function googleLoginUrl() {
   return providerLoginUrl('google_oauth2')
 }
+
+// Full-page redirect that starts the GitHub OAuth flow.
+export function githubLoginUrl() {
+  return providerLoginUrl('github')
+}
+
+// Full-page redirect that starts the Microsoft OAuth flow.
+export function microsoftLoginUrl() {
+  return providerLoginUrl('microsoft')
+}
