@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "jwt"
+require "securerandom"
 
 # Verifies stream tickets minted by the Hypertube API.
 #
@@ -48,6 +49,25 @@ module StreamTicketVerifier
     claims
   rescue JWT::DecodeError => e
     raise Error, e.message
+  end
+
+  # Mint a short-lived service-scope token the streaming service uses to call
+  # back into the Hypertube API (e.g. download-complete). It rides the same
+  # shared-secret contract, so the API's StreamTicket.verify accepts it.
+  def issue_service_token(ttl: 60)
+    now = Time.now.to_i
+    JWT.encode(
+      {
+        iss:   ISSUER,
+        aud:   AUDIENCE,
+        scope: SERVICE_SCOPE,
+        iat:   now,
+        exp:   now + ttl,
+        jti:   SecureRandom.uuid
+      },
+      secret,
+      ALGORITHM
+    )
   end
 
   def secret

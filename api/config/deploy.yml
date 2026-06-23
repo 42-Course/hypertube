@@ -40,6 +40,8 @@ env:
     SMTP_PORT: "587"
     MAILER_FROM: noreply@fractalia.art
     PROWLARR_URL: https://prowlarr.pulgamecanica.com
+    # OpenSubtitles consumer User-Agent (the API key itself is a secret below).
+    OPEN_SUBTITLES_USER_AGENT: Hypertube v1.0
     # Public, browser-facing base of the streaming service (returned to the SPA
     # as streaming_url). Fronted by kamal-proxy with TLS.
     STREAMING_SERVICE_URL: https://stream.fractalia.art
@@ -65,6 +67,7 @@ env:
     - OMDB_API_KEY
     - TMDB_API_KEY
     - PROWLARR_API_KEY
+    - OPEN_SUBTITLES_API_KEY
     - FRONTEND_URL
     # Shared HMAC secret used to sign viewer stream tickets. MUST match
     # STREAM_TICKET_SECRET in torrent-streaming/.env.production.

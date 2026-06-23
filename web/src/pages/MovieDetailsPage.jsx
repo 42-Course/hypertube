@@ -1,17 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import HlsPlayer from '../features/movies/HlsPlayer'
 import MovieComments from '../features/movies/MovieComments'
 import MoviePosterFallback from '../features/movies/MoviePosterFallback'
 import {
+  fetchSubtitleVttUrl,
   getMovieDetails,
   markMovieUnwatched,
   markMovieWatched,
+  updateMovieDuration,
 } from '../features/movies/moviesApi'
 import { useMoviePlayback } from '../features/movies/useMoviePlayback'
 import { useI18n } from '../i18n/useI18n'
 
-const STREAM_STEPS = ['torrent', 'download', 'stream', 'cache']
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) {
+    return '0 MB'
+  }
+  const mb = bytes / (1024 * 1024)
+  if (mb >= 1024) {
+    return `${(mb / 1024).toFixed(2)} GB`
+  }
+  return `${mb.toFixed(0)} MB`
+}
+
+function formatClock(totalSeconds) {
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) {
+    return '0:00'
+  }
+  const seconds = Math.floor(totalSeconds)
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainder = seconds % 60
+  const mm = hours > 0 ? String(minutes).padStart(2, '0') : String(minutes)
+  return `${hours > 0 ? `${hours}:` : ''}${mm}:${String(remainder).padStart(2, '0')}`
+}
 
 function MovieDetailsPage() {
   const { movieId } = useParams()
@@ -20,8 +43,39 @@ function MovieDetailsPage() {
   const [errorId, setErrorId] = useState(null)
   const [watchStatusError, setWatchStatusError] = useState('')
   const [isUpdatingWatchStatus, setIsUpdatingWatchStatus] = useState(false)
-  const [selectedSubtitle, setSelectedSubtitle] = useState('')
-  const playback = useMoviePlayback(movieId)
+
+  // hls.js native renditions (used on the VOD master playlist path).
+  const [nativeTracks, setNativeTracks] = useState({ audio: [], subtitle: [] })
+  const [nativeAudioIndex, setNativeAudioIndex] = useState(0)
+  const [nativeSubtitleIndex, setNativeSubtitleIndex] = useState(-1)
+
+  // OpenSubtitles overlay (fetched from the API, rendered as a <track>).
+  const [osLanguage, setOsLanguage] = useState('')
+  const [osSubtitle, setOsSubtitle] = useState(null)
+
+  // Global seek bar: null unless the user is actively scrubbing the timeline.
+  const [scrubSeconds, setScrubSeconds] = useState(null)
+
+  const movieRef = useRef(null)
+  useEffect(() => {
+    movieRef.current = movie
+  }, [movie])
+
+  // Mark the movie watched the instant playback starts (not after HLS is ready).
+  const handlePlaybackStarted = useCallback(async () => {
+    const current = movieRef.current
+    if (!current || current.watched) {
+      return
+    }
+    try {
+      const updated = await markMovieWatched(current.id)
+      setMovie(updated)
+    } catch {
+      // Watched tracking is best-effort; never interrupt playback.
+    }
+  }, [])
+
+  const playback = useMoviePlayback(movieId, { onPlaybackStarted: handlePlaybackStarted })
 
   useEffect(() => {
     let active = true
@@ -32,7 +86,6 @@ function MovieDetailsPage() {
           return
         }
         setMovie(data)
-        setSelectedSubtitle(data.subtitles?.[0] || '')
         setErrorId(null)
       })
       .catch(() => {
@@ -46,6 +99,56 @@ function MovieDetailsPage() {
       active = false
     }
   }, [movieId])
+
+  // Load (and revoke) the OpenSubtitles VTT object URL when the language changes.
+  // Stored together with its language so an empty selection simply yields no
+  // matching track (avoids a synchronous state reset inside the effect body).
+  const movieIdValue = movie?.id
+  useEffect(() => {
+    if (!osLanguage || !movieIdValue) {
+      return undefined
+    }
+    let active = true
+    let createdUrl = null
+    fetchSubtitleVttUrl(movieIdValue, osLanguage)
+      .then((url) => {
+        if (!active) {
+          URL.revokeObjectURL(url)
+          return
+        }
+        createdUrl = url
+        setOsSubtitle({ language: osLanguage, url })
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl)
+      }
+    }
+  }, [osLanguage, movieIdValue])
+
+  // Persist the runtime to the API once the torrent/transcoder reveals it (the
+  // metadata sources almost always leave duration empty). Runs once: the guard
+  // stops firing as soon as the movie reports a duration.
+  const playbackDurationSeconds = playback.durationSeconds
+  const movieDuration = movie?.duration
+  useEffect(() => {
+    if (!movieIdValue || !playbackDurationSeconds || playbackDurationSeconds <= 0 || movieDuration) {
+      return undefined
+    }
+    let active = true
+    updateMovieDuration(movieIdValue, playbackDurationSeconds)
+      .then((updated) => {
+        if (active) {
+          setMovie(updated)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [playbackDurationSeconds, movieIdValue, movieDuration])
 
   const isError = errorId === movieId
   const isReady = movie != null && String(movie.id) === movieId
@@ -87,25 +190,90 @@ function MovieDetailsPage() {
     Boolean(movie.director) || movie.producers.length > 0 || movie.cast.length > 0
 
   const isPreparing = playback.status === 'preparing' || playback.status === 'buffering'
+  const isVod = playback.mode === 'vod'
+
+  // Audio options: hls.js native renditions for VOD, else the interactive
+  // session's audio_tracks (a server re-seek switches the rendition).
+  const audioOptions = isVod
+    ? nativeTracks.audio
+    : playback.audioTracks.filter((track) => track.supported !== false)
+  const selectedAudioValue = isVod ? nativeAudioIndex : playback.selectedAudio
+
+  const handleAudioChange = (event) => {
+    const value = Number(event.target.value)
+    if (isVod) {
+      setNativeAudioIndex(value)
+    } else {
+      playback.selectAudio(value)
+    }
+  }
+
+  // Embedded / in-torrent subtitle options from the stream.
+  const streamSubtitleOptions = isVod
+    ? nativeTracks.subtitle
+    : playback.streamSubtitles.filter((track) => track.supported !== false)
+  const selectedStreamSubtitleValue = isVod
+    ? nativeSubtitleIndex
+    : playback.selectedStreamSubtitle
+
+  const handleStreamSubtitleChange = (event) => {
+    const raw = event.target.value
+    if (isVod) {
+      setNativeSubtitleIndex(raw === '' ? -1 : Number(raw))
+    } else {
+      playback.selectStreamSubtitle(raw === '' ? null : Number(raw))
+    }
+  }
+
+  // Global timeline: lets the viewer jump anywhere in the movie (the streaming
+  // service starts a new transcode there and prioritizes those pieces), even
+  // before the whole torrent has downloaded. Interactive sessions only — VOD
+  // uses the player's own native scrubber.
+  const canSeekTimeline =
+    playback.mode === 'interactive' && Number(playback.durationSeconds) > 0 && Boolean(playback.playlistUrl)
+  const timelineMax = Math.floor(Number(playback.durationSeconds) || 0)
+  const timelineValue =
+    scrubSeconds != null ? scrubSeconds : Math.min(Math.floor(playback.globalTime || 0), timelineMax)
+
+  const commitSeek = () => {
+    if (scrubSeconds != null) {
+      playback.seekTo(scrubSeconds)
+      setScrubSeconds(null)
+    }
+  }
+
+  const osLanguages = movie.subtitles || []
+  const extraTracks =
+    osLanguage && osSubtitle?.language === osLanguage
+      ? [{ src: osSubtitle.url, srcLang: osLanguage, label: osLanguage, default: true }]
+      : []
+
+  const mediaStateLabel = playback.mediaState
+    ? t(`movieDetails.mediaState.${playback.mediaState}`)
+    : t(`movieDetails.streamStatus.${playback.status}`)
+  const isDownloading = playback.progress.bytesTotal > 0 && !playback.progress.complete
+  const showProgress = isDownloading && !isVod
+
+  // Map the playback error code to a friendly, actionable message (unknown codes
+  // fall back to a generic one rather than leaking a raw axios/HTTP string).
+  const KNOWN_STREAM_ERRORS = [
+    'no_torrent',
+    'streaming_unavailable',
+    'torrent_failed',
+    'timeout',
+    'not_configured',
+  ]
+  const streamErrorMessage =
+    playback.status === 'error'
+      ? t(
+          `movieDetails.streamErrors.${
+            KNOWN_STREAM_ERRORS.includes(playback.errorCode) ? playback.errorCode : 'generic'
+          }`,
+        )
+      : null
 
   async function handlePreparePlayback() {
-    const isPlaybackReady = await playback.start()
-
-    if (!isPlaybackReady || movie.watched) {
-      return
-    }
-
-    setIsUpdatingWatchStatus(true)
-    setWatchStatusError('')
-
-    try {
-      const updatedMovie = await markMovieWatched(movie.id)
-      setMovie(updatedMovie)
-    } catch {
-      setWatchStatusError(t('movieDetails.watchStatusError'))
-    } finally {
-      setIsUpdatingWatchStatus(false)
-    }
+    await playback.start()
   }
 
   async function handleMarkUnwatched() {
@@ -198,7 +366,7 @@ function MovieDetailsPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
+      <section className="grid items-start gap-6 lg:grid-cols-[1fr_360px]">
         <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black">
           {playback.playlistUrl ? (
             <HlsPlayer
@@ -207,6 +375,11 @@ function MovieDetailsPage() {
               poster={movie.coverUrl}
               onStatus={playback.handlePlayerStatus}
               onError={playback.handlePlayerError}
+              onTimeUpdate={playback.handleTimeUpdate}
+              onNativeTracks={setNativeTracks}
+              nativeAudioIndex={isVod ? nativeAudioIndex : undefined}
+              nativeSubtitleIndex={isVod ? nativeSubtitleIndex : undefined}
+              extraTracks={extraTracks}
             />
           ) : (
             <div className="flex aspect-video items-center justify-center bg-[radial-gradient(circle_at_center,_rgba(239,68,68,0.16),_rgba(9,9,11,0.96)_48%,_#000_100%)]">
@@ -217,14 +390,35 @@ function MovieDetailsPage() {
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
                   {t('movieDetails.player')}
                 </p>
-                <p className="mt-3 text-2xl font-semibold text-white">
-                  {t(`movieDetails.streamStatus.${playback.status}`)}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  {playback.status === 'error' && playback.errorMessage
-                    ? playback.errorMessage
-                    : t('movieDetails.streamPlaceholder')}
-                </p>
+                <p className="mt-3 text-2xl font-semibold text-white">{mediaStateLabel}</p>
+                {isDownloading ? (
+                  <div className="mt-4">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                      <div
+                        className="h-full rounded-full bg-red-500 transition-all"
+                        style={{ width: `${playback.progress.percent}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-zinc-400">
+                      {t('movieDetails.downloadProgress', {
+                        percent: playback.progress.percent,
+                        downloaded: formatBytes(playback.progress.bytesDownloaded),
+                        total: formatBytes(playback.progress.bytesTotal),
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <p
+                    className={`mt-2 text-sm leading-6 ${
+                      streamErrorMessage ? 'text-red-300' : 'text-zinc-500'
+                    }`}
+                  >
+                    {streamErrorMessage || t('movieDetails.streamPlaceholder')}
+                  </p>
+                )}
+                {playback.warnings.length > 0 ? (
+                  <p className="mt-3 text-xs text-amber-300">{playback.warnings[0].message}</p>
+                ) : null}
                 <button
                   className="mt-6 rounded-xl bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-70"
                   type="button"
@@ -239,21 +433,93 @@ function MovieDetailsPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 border-t border-zinc-900 bg-zinc-950 p-3 sm:grid-cols-4 sm:p-4">
-            {STREAM_STEPS.map((step, index) => (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-3" key={step}>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-300">
-                  {String(index + 1).padStart(2, '0')}
-                </p>
-                <p className="mt-2 text-sm font-semibold text-white">
-                  {t(`movieDetails.streamSteps.${step}.title`)}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">
-                  {t(`movieDetails.streamSteps.${step}.description`)}
-                </p>
+          {playback.playlistUrl ? (
+            <div className="space-y-3 border-t border-zinc-900 bg-zinc-950 p-4">
+              {canSeekTimeline ? (
+                <div>
+                  <input
+                    className="w-full accent-red-500"
+                    type="range"
+                    min={0}
+                    max={timelineMax}
+                    step={1}
+                    value={timelineValue}
+                    onChange={(event) => setScrubSeconds(Number(event.target.value))}
+                    onMouseUp={commitSeek}
+                    onTouchEnd={commitSeek}
+                    onKeyUp={commitSeek}
+                    aria-label={t('movieDetails.seek')}
+                  />
+                  <div className="flex justify-between text-xs text-zinc-500">
+                    <span>{formatClock(timelineValue)}</span>
+                    <span>{formatClock(timelineMax)}</span>
+                  </div>
+                </div>
+              ) : null}
+              {showProgress ? (
+                <div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                    <div
+                      className="h-full rounded-full bg-red-500 transition-all"
+                      style={{ width: `${playback.progress.percent}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-zinc-500">
+                    {t('movieDetails.downloadProgress', {
+                      percent: playback.progress.percent,
+                      downloaded: formatBytes(playback.progress.bytesDownloaded),
+                      total: formatBytes(playback.progress.bytesTotal),
+                    })}
+                  </p>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-4">
+                {audioOptions.length > 0 ? (
+                  <label className="flex items-center gap-2 text-xs text-zinc-400">
+                    <span className="font-semibold uppercase tracking-[0.16em]">
+                      {t('movieDetails.audioTrack')}
+                    </span>
+                    <select
+                      className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-white"
+                      value={selectedAudioValue ?? ''}
+                      onChange={handleAudioChange}
+                    >
+                      {audioOptions.map((track) => (
+                        <option key={track.index} value={track.index}>
+                          {track.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                {streamSubtitleOptions.length > 0 ? (
+                  <label className="flex items-center gap-2 text-xs text-zinc-400">
+                    <span className="font-semibold uppercase tracking-[0.16em]">
+                      {t('movieDetails.embeddedSubtitle')}
+                    </span>
+                    <select
+                      className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-white"
+                      value={
+                        selectedStreamSubtitleValue === null ||
+                        selectedStreamSubtitleValue === undefined ||
+                        selectedStreamSubtitleValue === -1
+                          ? ''
+                          : selectedStreamSubtitleValue
+                      }
+                      onChange={handleStreamSubtitleChange}
+                    >
+                      <option value="">{t('movieDetails.subtitlesOff')}</option>
+                      {streamSubtitleOptions.map((track) => (
+                        <option key={track.index} value={track.index}>
+                          {track.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : null}
         </div>
 
         <aside className="space-y-4">
@@ -351,30 +617,24 @@ function MovieDetailsPage() {
           ) : null}
 
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
-            <h2 className="text-lg font-semibold text-white">{t('movieDetails.subtitles')}</h2>
-            {movie.subtitles.length > 0 ? (
+            <h2 className="text-lg font-semibold text-white">
+              {t('movieDetails.subtitles')}
+            </h2>
+            {osLanguages.length > 0 ? (
               <div className="mt-4 space-y-3">
-                {selectedSubtitle ? (
-                  <p className="text-sm text-zinc-400">
-                    {t('movieDetails.selectedSubtitle', { language: selectedSubtitle })}
-                  </p>
-                ) : null}
-                <div className="flex flex-wrap gap-2">
-                {movie.subtitles.map((subtitle) => (
-                  <button
-                    className={`rounded-full px-3 py-1 text-sm transition ${
-                      selectedSubtitle === subtitle
-                        ? 'bg-red-500 text-white'
-                        : 'bg-zinc-950 text-zinc-300 hover:bg-zinc-800 hover:text-white'
-                    }`}
-                    key={subtitle}
-                    type="button"
-                    onClick={() => setSelectedSubtitle(subtitle)}
-                  >
-                    {subtitle}
-                  </button>
-                ))}
-                </div>
+                <p className="text-sm text-zinc-400">{t('movieDetails.openSubtitlesHint')}</p>
+                <select
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white"
+                  value={osLanguage}
+                  onChange={(event) => setOsLanguage(event.target.value)}
+                >
+                  <option value="">{t('movieDetails.subtitlesOff')}</option>
+                  {osLanguages.map((language) => (
+                    <option key={language} value={language}>
+                      {language}
+                    </option>
+                  ))}
+                </select>
               </div>
             ) : (
               <p className="mt-4 text-sm text-zinc-500">{t('movieDetails.noSubtitles')}</p>

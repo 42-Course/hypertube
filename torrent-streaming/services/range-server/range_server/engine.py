@@ -110,6 +110,12 @@ class TorrentEngine:
     def have_pieces(self, media_id: str, pieces: tuple[int, ...]) -> bool:
         raise NotImplementedError
 
+    def pause(self, media_id: str) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def resume(self, media_id: str) -> dict[str, Any]:
+        raise NotImplementedError
+
 
 class LibtorrentEngine(TorrentEngine):
     """Thread-owned libtorrent adapter with snapshot and priority bookkeeping.
@@ -194,6 +200,12 @@ class LibtorrentEngine(TorrentEngine):
 
     def have_pieces(self, media_id: str, pieces: tuple[int, ...]) -> bool:
         return bool(self._call("have_pieces", media_id, tuple(pieces)))
+
+    def pause(self, media_id: str) -> dict[str, Any]:
+        return dict(self._call("pause", media_id))
+
+    def resume(self, media_id: str) -> dict[str, Any]:
+        return dict(self._call("resume", media_id))
 
     def _call(self, name: str, *args: Any) -> Any:
         """Run a command on the libtorrent owner thread and return its result."""
@@ -381,6 +393,10 @@ class LibtorrentEngine(TorrentEngine):
                 value = self._release_range(*command.args)
             elif command.name == "have_pieces":
                 value = self._have_pieces(*command.args)
+            elif command.name == "pause":
+                value = self._pause(*command.args)
+            elif command.name == "resume":
+                value = self._resume(*command.args)
             else:
                 raise RuntimeError(f"unknown command {command.name}")
             command.result.put((True, value))
@@ -413,6 +429,37 @@ class LibtorrentEngine(TorrentEngine):
         self._save_manifest()
         self._request_resume_save(media_id)
         return snapshot
+
+    def _pause(self, media_id: str) -> dict[str, Any]:
+        """Pause downloading for a media so it only progresses while watched.
+
+        Auto-managed is cleared first, otherwise libtorrent's session management
+        would silently resume the torrent shortly after the explicit pause.
+        """
+        handle = self._require_handle(media_id)
+        try:
+            handle.unset_flags(self.lt.torrent_flags.auto_managed)
+        except Exception:
+            pass
+        handle.pause()
+        self._request_resume_save(media_id)
+        return {"media_id": media_id, "paused": True}
+
+    def _resume(self, media_id: str) -> dict[str, Any]:
+        """Resume a previously paused media (re-enabling auto management)."""
+        handle = self._require_handle(media_id)
+        try:
+            handle.set_flags(self.lt.torrent_flags.auto_managed)
+        except Exception:
+            pass
+        handle.resume()
+        return {"media_id": media_id, "paused": False}
+
+    def _require_handle(self, media_id: str) -> Any:
+        handle = self.handles.get(media_id)
+        if handle is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, "not_found", "torrent is unknown")
+        return handle
 
     def _add_handle(self, media_id: str, magnet: Magnet) -> Any:
         params = self._read_resume_params(media_id, magnet)

@@ -62,6 +62,13 @@ class Application:
                 and method == "POST"
             ):
                 return self._select_file(path_parts[1], body)
+            if (
+                len(path_parts) == 3
+                and path_parts[0] == "torrents"
+                and path_parts[2] in ("pause", "resume")
+                and method == "POST"
+            ):
+                return self._pause_resume(path_parts[1], path_parts[2])
             return HTTPStatus.NOT_FOUND, {"error": "not_found"}
         except ApiError as exc:
             backend_error(
@@ -156,3 +163,10 @@ class Application:
             raise ApiError(HTTPStatus.BAD_REQUEST, "invalid_file_index", "file_index must be a non-negative integer")
         result = self.engine.select_file(media_id, file_index)
         return HTTPStatus.OK, result.to_api()
+
+    def _pause_resume(self, media_id_value: str, action: str) -> tuple[int, dict[str, Any]]:
+        """Pause or resume downloading so a torrent only progresses while watched."""
+
+        media_id = validate_media_id(media_id_value)
+        result = self.engine.pause(media_id) if action == "pause" else self.engine.resume(media_id)
+        return HTTPStatus.OK, result
