@@ -269,10 +269,13 @@ Devise.setup do |config|
   config.sign_out_via = :delete
 
   # ==> OmniAuth
-  # Two strategies are required by the subject: 42 + one of our choice (Google).
-  # Credentials come from the environment (.env, excluded from git). When unset
-  # the strategy is still registered but simply won't authenticate.
+  # 42 is required by the subject; Google, GitHub and Microsoft are extra
+  # providers of our choice. Credentials come from the environment (.env,
+  # excluded from git). When unset the strategy is still registered but simply
+  # won't authenticate.
   require Rails.root.join("lib", "omniauth", "strategies", "fortytwo")
+  require Rails.root.join("lib", "omniauth", "strategies", "github")
+  require Rails.root.join("lib", "omniauth", "strategies", "microsoft")
 
   config.omniauth :google_oauth2,
                   ENV["OMNIAUTH_GOOGLE_CLIENT_ID"], ENV["OMNIAUTH_GOOGLE_CLIENT_SECRET"],
@@ -281,6 +284,14 @@ Devise.setup do |config|
   config.omniauth :fortytwo,
                   ENV["OMNIAUTH_42_CLIENT_ID"], ENV["OMNIAUTH_42_CLIENT_SECRET"],
                   scope: "public"
+
+  config.omniauth :github,
+                  ENV["OMNIAUTH_GITHUB_CLIENT_ID"], ENV["OMNIAUTH_GITHUB_CLIENT_SECRET"],
+                  scope: "read:user user:email"
+
+  config.omniauth :microsoft,
+                  ENV["OMNIAUTH_MICROSOFT_CLIENT_ID"], ENV["OMNIAUTH_MICROSOFT_CLIENT_SECRET"],
+                  scope: "openid email profile User.Read"
 
   # ==> Warden configuration
   # If you want to use other strategies, that are not supported by Devise, or

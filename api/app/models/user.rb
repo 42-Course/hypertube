@@ -3,7 +3,7 @@ class User < ApplicationRecord
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :trackable,
-         :omniauthable, omniauth_providers: %i[google_oauth2 fortytwo]
+         :omniauthable, omniauth_providers: %i[google_oauth2 fortytwo github microsoft]
 
   has_many :comments, dependent: :destroy
   has_many :watch_histories, dependent: :destroy

@@ -1,8 +1,8 @@
 require "swagger_helper"
 
-# Documents and exercises the OmniAuth provider-login flow (42 + Google).
-# Uses OmniAuth's test mode to mock the provider so no real credentials or
-# network calls are needed.
+# Documents and exercises the OmniAuth provider-login flow
+# (42 + Google + GitHub + Microsoft). Uses OmniAuth's test mode to mock the
+# provider so no real credentials or network calls are needed.
 RSpec.describe "Provider login (OmniAuth)", type: :request do
   before do
     OmniAuth.config.test_mode = true
@@ -17,17 +17,30 @@ RSpec.describe "Provider login (OmniAuth)", type: :request do
               last_name: "Forty", nickname: "nforty",
               image: "https://cdn.intra.42.fr/users/norm.jpg" }
     )
+    OmniAuth.config.mock_auth[:github] = OmniAuth::AuthHash.new(
+      provider: "github", uid: "gh-1",
+      info: { email: "octo@example.com", first_name: "Octo",
+              last_name: "Cat", nickname: "octocat",
+              image: "https://avatars.githubusercontent.com/u/1" }
+    )
+    OmniAuth.config.mock_auth[:microsoft] = OmniAuth::AuthHash.new(
+      provider: "microsoft", uid: "ms-1",
+      info: { email: "milo@example.com", first_name: "Milo",
+              last_name: "Soft", nickname: "milo" }
+    )
   end
 
   after do
     OmniAuth.config.test_mode = false
     OmniAuth.config.mock_auth[:google_oauth2] = nil
     OmniAuth.config.mock_auth[:fortytwo] = nil
+    OmniAuth.config.mock_auth[:github] = nil
+    OmniAuth.config.mock_auth[:microsoft] = nil
   end
 
   path "/users/auth/{provider}" do
     parameter name: :provider, in: :path, required: true,
-              schema: { type: :string, enum: %w[google_oauth2 fortytwo] },
+              schema: { type: :string, enum: %w[google_oauth2 fortytwo github microsoft] },
               description: "Identity provider to authenticate with"
 
     get "Start provider login" do
@@ -50,7 +63,7 @@ RSpec.describe "Provider login (OmniAuth)", type: :request do
 
   path "/users/auth/{provider}/callback" do
     parameter name: :provider, in: :path, required: true,
-              schema: { type: :string, enum: %w[google_oauth2 fortytwo] }
+              schema: { type: :string, enum: %w[google_oauth2 fortytwo github microsoft] }
 
     get "Provider OAuth2 callback" do
       tags     "Authentication"
@@ -78,6 +91,20 @@ RSpec.describe "Provider login (OmniAuth)", type: :request do
       get "/users/auth/fortytwo/callback"
       user = User.find_by(provider: "fortytwo", uid: "42-1")
       expect(user.profile_picture_url).to eq("https://cdn.intra.42.fr/users/norm.jpg")
+    end
+
+    it "provisions a user from the GitHub callback" do
+      get "/users/auth/github/callback"
+      expect(response).to have_http_status(:found)
+      expect(response.headers["Location"]).to include("access_token=")
+      expect(User.find_by(provider: "github", uid: "gh-1")).to be_present
+    end
+
+    it "provisions a user from the Microsoft callback" do
+      get "/users/auth/microsoft/callback"
+      expect(response).to have_http_status(:found)
+      expect(response.headers["Location"]).to include("access_token=")
+      expect(User.find_by(provider: "microsoft", uid: "ms-1")).to be_present
     end
 
     it "redirects to the SPA login with an error when the provider fails" do
