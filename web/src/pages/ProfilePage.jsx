@@ -268,8 +268,8 @@ function ProfilePage() {
 
         </aside>
 
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6">
+        <div className="flex h-full flex-col">
+          <section className="flex min-h-[520px] flex-1 flex-col rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 sm:p-6">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
@@ -307,7 +307,7 @@ function ProfilePage() {
               </p>
             )}
 
-            <form id="profile-form" className="mt-6 grid gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
+            <form id="profile-form" className="mt-6 grid flex-1 content-start gap-5 md:grid-cols-2" onSubmit={handleSubmit}>
               <label className="block">
                 <EditableLabel
                   editLabel={t('profile.editFirstName')}
