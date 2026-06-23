@@ -17,6 +17,7 @@ class User < ApplicationRecord
                          format: { with: /\A[a-zA-Z0-9_]+\z/ }, length: { minimum: 3 }
   validates :first_name, presence: true
   validates :last_name,  presence: true
+  validates :password,   password_blacklist: true, if: -> { password.present? }
 
   # Prefer the uploaded avatar (served via Active Storage) over the external
   # OAuth image stored in the string column. Returns an absolute URL so API

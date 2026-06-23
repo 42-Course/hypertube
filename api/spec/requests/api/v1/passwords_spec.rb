@@ -84,6 +84,19 @@ RSpec.describe "Password reset API", type: :request do
           expect(data).to have_key("errors")
         end
       end
+
+      response "422", "blacklisted password" do
+        let(:token) { user.send_reset_password_instructions }
+        let(:body) do
+          { user: { reset_password_token: token, password: "abaisse",
+                    password_confirmation: "abaisse" } }
+        end
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["errors"]).to include("Password is too common")
+          expect(user.reload.valid_password?("abaisse")).to be(false)
+        end
+      end
     end
   end
 end

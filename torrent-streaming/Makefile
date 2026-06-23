@@ -131,7 +131,7 @@ build:
 
 # Starts the whole project with rebuilds and waits for healthchecks.
 run: storage-dirs
-	$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) $(COMPOSE) up -d --build --wait
+	$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) $(COMPOSE) up -d --build
 	@printf "\nProjet lance: http://localhost:$(WEB_PORT)\n"
 
 # Convenience alias for make run.
@@ -139,7 +139,7 @@ up: run
 
 # Starts the whole project without rebuilding and waits for healthchecks.
 start: storage-dirs
-	$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) $(COMPOSE) up -d --wait
+	$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) $(COMPOSE) up -d
 	@printf "\nProjet lance: http://localhost:$(WEB_PORT)\n"
 
 # Stops Compose containers and removes orphans.
@@ -152,7 +152,7 @@ down: stop
 # Restarts application services and then waits for readiness.
 restart:
 	$(COMPOSE) restart redis range-server transcoder-api transcoder-worker-interactive transcoder-worker-vod web
-	$(COMPOSE_ENV) $(COMPOSE) up -d --wait
+	$(COMPOSE_ENV) $(COMPOSE) up -d
 
 # Shows Compose service status.
 ps:
@@ -209,7 +209,7 @@ shell:
 
 # Starts development mode with local source mounted and rebuilds if needed.
 dev: storage-dirs
-	$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) RANGE_SERVER_PORT=$(RANGE_SERVER_PORT) BITTORRENT_PORT=$(BITTORRENT_PORT) BITTORRENT_LISTEN_INTERFACES="$(BITTORRENT_LISTEN_INTERFACES)" BITTORRENT_DHT_ROUTERS="$(BITTORRENT_DHT_ROUTERS)" BITTORRENT_DISCOVERY_PROFILE="$(BITTORRENT_DISCOVERY_PROFILE)" RANGE_SERVER_CACHE_MODE="$(RANGE_SERVER_CACHE_MODE)" $(COMPOSE_DEV) up -d --build --wait
+	$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) RANGE_SERVER_PORT=$(RANGE_SERVER_PORT) BITTORRENT_PORT=$(BITTORRENT_PORT) BITTORRENT_LISTEN_INTERFACES="$(BITTORRENT_LISTEN_INTERFACES)" BITTORRENT_DHT_ROUTERS="$(BITTORRENT_DHT_ROUTERS)" BITTORRENT_DISCOVERY_PROFILE="$(BITTORRENT_DISCOVERY_PROFILE)" RANGE_SERVER_CACHE_MODE="$(RANGE_SERVER_CACHE_MODE)" $(COMPOSE_DEV) up -d --build
 	@printf "\nMode dev lance: http://localhost:$(WEB_PORT)\n"
 	@printf "Range-server dev: http://localhost:$(RANGE_SERVER_PORT)\n"
 	@printf "BitTorrent dev: tcp/udp localhost:$(BITTORRENT_PORT)\n"
@@ -217,7 +217,7 @@ dev: storage-dirs
 
 # Starts development mode without rebuilding, using existing images.
 dev-start: storage-dirs
-	$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) RANGE_SERVER_PORT=$(RANGE_SERVER_PORT) BITTORRENT_PORT=$(BITTORRENT_PORT) BITTORRENT_LISTEN_INTERFACES="$(BITTORRENT_LISTEN_INTERFACES)" BITTORRENT_DHT_ROUTERS="$(BITTORRENT_DHT_ROUTERS)" BITTORRENT_DISCOVERY_PROFILE="$(BITTORRENT_DISCOVERY_PROFILE)" RANGE_SERVER_CACHE_MODE="$(RANGE_SERVER_CACHE_MODE)" $(COMPOSE_DEV) up -d --wait
+	$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) RANGE_SERVER_PORT=$(RANGE_SERVER_PORT) BITTORRENT_PORT=$(BITTORRENT_PORT) BITTORRENT_LISTEN_INTERFACES="$(BITTORRENT_LISTEN_INTERFACES)" BITTORRENT_DHT_ROUTERS="$(BITTORRENT_DHT_ROUTERS)" BITTORRENT_DISCOVERY_PROFILE="$(BITTORRENT_DISCOVERY_PROFILE)" RANGE_SERVER_CACHE_MODE="$(RANGE_SERVER_CACHE_MODE)" $(COMPOSE_DEV) up -d
 	@printf "\nMode dev lance: http://localhost:$(WEB_PORT)\n"
 	@printf "Range-server dev: http://localhost:$(RANGE_SERVER_PORT)\n"
 	@printf "BitTorrent dev: tcp/udp localhost:$(BITTORRENT_PORT)\n"
@@ -229,7 +229,7 @@ dev-restart:
 		$(COMPOSE_DEV) restart "$(SERVICE)"; \
 	else \
 		$(COMPOSE_DEV) restart redis range-server transcoder-api transcoder-worker-interactive transcoder-worker-vod web; \
-		$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) RANGE_SERVER_PORT=$(RANGE_SERVER_PORT) BITTORRENT_PORT=$(BITTORRENT_PORT) BITTORRENT_LISTEN_INTERFACES="$(BITTORRENT_LISTEN_INTERFACES)" BITTORRENT_DHT_ROUTERS="$(BITTORRENT_DHT_ROUTERS)" BITTORRENT_DISCOVERY_PROFILE="$(BITTORRENT_DISCOVERY_PROFILE)" RANGE_SERVER_CACHE_MODE="$(RANGE_SERVER_CACHE_MODE)" $(COMPOSE_DEV) up -d --wait; \
+		$(COMPOSE_ENV) WEB_PORT=$(WEB_PORT) RANGE_SERVER_PORT=$(RANGE_SERVER_PORT) BITTORRENT_PORT=$(BITTORRENT_PORT) BITTORRENT_LISTEN_INTERFACES="$(BITTORRENT_LISTEN_INTERFACES)" BITTORRENT_DHT_ROUTERS="$(BITTORRENT_DHT_ROUTERS)" BITTORRENT_DISCOVERY_PROFILE="$(BITTORRENT_DISCOVERY_PROFILE)" RANGE_SERVER_CACHE_MODE="$(RANGE_SERVER_CACHE_MODE)" $(COMPOSE_DEV) up -d; \
 	fi
 
 # Follows development logs, or one service log with SERVICE=name.
@@ -272,7 +272,7 @@ prod-deploy:
 
 # Starts the production stack without rebuilding and waits for healthchecks.
 prod-start:
-	$(COMPOSE_PROD) up -d --wait
+	$(COMPOSE_PROD) up -d
 
 # (Re-)registers the stream.fractalia.art route with kamal-proxy. Re-run this
 # after any `kamal proxy reboot`, which clears manual routes.

@@ -20,6 +20,29 @@ RSpec.describe User, type: :model do
       user.username = "ab"
       expect(user).not_to be_valid
     end
+
+    it "rejects passwords from the French dictionary blacklist" do
+      user.password = "abaisse"
+      user.password_confirmation = "abaisse"
+
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to include("is too common")
+    end
+
+    it "matches blacklisted passwords case-insensitively" do
+      user.password = "ABANDON"
+      user.password_confirmation = "ABANDON"
+
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to include("is too common")
+    end
+
+    it "allows passwords that only contain a blacklisted word" do
+      user.password = "abandon123!"
+      user.password_confirmation = "abandon123!"
+
+      expect(user).to be_valid
+    end
   end
 
   describe "associations" do

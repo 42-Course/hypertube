@@ -99,6 +99,18 @@ RSpec.describe "Users API", type: :request do
           expect(data).to have_key("errors")
         end
       end
+
+      response "422", "blacklisted password" do
+        let(:body) do
+          { user: { email: "blocked@example.com", username: "blocked",
+                    first_name: "Ada", last_name: "Lovelace",
+                    password: "abaisse" } }
+        end
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["errors"]).to include("Password is too common")
+        end
+      end
     end
   end
 
