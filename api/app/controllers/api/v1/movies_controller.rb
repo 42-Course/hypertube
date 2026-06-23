@@ -2,7 +2,7 @@ class Api::V1::MoviesController < ApplicationController
   # The catalog and search are public (subject: "Any user can access the
   # website's front page"). Movie details require authentication.
   skip_before_action :doorkeeper_authorize!, only: %i[index search]
-  before_action :set_movie, only: %i[mark_watched mark_unwatched]
+  before_action :set_movie, only: %i[mark_watched mark_unwatched subtitles subtitle update_duration]
 
   PER_PAGE = 20
 
@@ -76,6 +76,7 @@ class Api::V1::MoviesController < ApplicationController
     return render json: { error: "Movie not found" }, status: :not_found unless movie
 
     MovieSources::Aggregator.new.enrich(movie)
+    ensure_subtitle_languages(movie)
     render json: movie.as_detail(user: current_user)
   end
 
@@ -97,6 +98,9 @@ class Api::V1::MoviesController < ApplicationController
     end
 
     media_id = StreamingService.new.ensure_media(magnet: magnet)
+    # Remember the media id so the streaming service's download-complete callback
+    # can map a finished media back to this movie.
+    movie.update_column(:media_id, media_id) if movie.media_id != media_id
     ticket   = StreamTicket.issue(user: current_user, movie: movie, media_id: media_id)
 
     render json: {
@@ -128,7 +132,52 @@ class Api::V1::MoviesController < ApplicationController
     render json: @movie.as_detail(user: current_user)
   end
 
+  # GET /api/v1/movies/:id/subtitles
+  #
+  # Subtitle languages available from OpenSubtitles for this movie (cached on the
+  # row). The browser overlays the chosen one as a <track>.
+  def subtitles
+    render json: { languages: ensure_subtitle_languages(@movie) }
+  end
+
+  # GET /api/v1/movies/:id/subtitles/:language
+  #
+  # Serve the chosen OpenSubtitles language as WebVTT (converted from SRT). The
+  # SPA fetches this with its bearer token and hands it to a <track> via a blob.
+  def subtitle
+    vtt = MovieSources::OpenSubtitles.new.vtt(@movie, params[:language])
+    if vtt.blank?
+      return render json: { error: "subtitle_unavailable" }, status: :not_found
+    end
+
+    render plain: vtt, content_type: "text/vtt"
+  end
+
+  # PATCH /api/v1/movies/:id/duration
+  #
+  # Persist the movie runtime discovered from the torrent/transcoder (in seconds;
+  # stored as whole minutes). Metadata sources almost always leave duration empty,
+  # so this fills it in. Only sets it when still blank, to avoid clobbering a
+  # value an external source did provide.
+  def update_duration
+    seconds = params[:seconds].to_i
+    if seconds.positive? && @movie.duration.blank?
+      @movie.update!(duration: (seconds / 60.0).round)
+    end
+    render json: @movie.as_detail(user: current_user)
+  end
+
   private
+
+  # Fetch-and-cache the OpenSubtitles language list for a movie. Cached on the
+  # row so the detail endpoint does not make an external call on every view.
+  def ensure_subtitle_languages(movie)
+    return movie.available_subtitles if movie.available_subtitles.present?
+
+    languages = MovieSources::OpenSubtitles.new.languages(movie)
+    movie.update_column(:subtitle_languages, languages) if languages.present?
+    languages
+  end
 
   def set_movie
     @movie = Movie.find_by(id: params[:id])

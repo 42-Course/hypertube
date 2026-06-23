@@ -194,6 +194,15 @@ module WebServices
     def select_file(media_id:, file_index:)
       post_json("/torrents/#{media_id}/select-file", { "file_index" => file_index })
     end
+
+    # Pause/resume downloading so a torrent only progresses while someone watches.
+    def pause_torrent(media_id:)
+      post_json("/torrents/#{media_id}/pause", {})
+    end
+
+    def resume_torrent(media_id:)
+      post_json("/torrents/#{media_id}/resume", {})
+    end
   end
 
   # Client for transcoder-api commands that create sessions, seek, probe metadata, and schedule VOD work.
@@ -240,6 +249,46 @@ module WebServices
     # VOD scheduling is idempotent on the API side; the web layer only sends it when media state qualifies.
     def schedule_vod(media_id:)
       post_json("/media/#{media_id}/vod", {})
+    end
+  end
+
+  # Outbound client to the Hypertube API for machine-to-machine callbacks. Unlike
+  # the internal-service clients above this one authenticates with a service-scope
+  # bearer token, so it does its own HTTP rather than using JsonServiceClient.
+  class HypertubeApiClient
+    DEFAULT_URL = ENV.fetch("HYPERTUBE_API_URL", "")
+
+    def initialize(base_url: DEFAULT_URL)
+      @base_url = base_url.to_s.delete_suffix("/")
+    end
+
+    def configured?
+      !@base_url.empty?
+    end
+
+    # Tell the API a media has finished downloading. Best-effort: any failure is
+    # logged and reported via the return value so the caller can retry later.
+    def notify_download_complete(payload:, token:)
+      return false unless configured?
+
+      uri = URI.parse("#{@base_url}/api/v1/streaming/callbacks/download_complete")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == "https"
+      http.open_timeout = 4
+      http.read_timeout = 8
+
+      request = Net::HTTP::Post.new(uri.request_uri)
+      request["Content-Type"] = "application/json"
+      request["Authorization"] = "Bearer #{token}"
+      request.body = JSON.generate(payload)
+
+      response = http.request(request)
+      success = response.is_a?(Net::HTTPSuccess)
+      WebServices.backend_log("api_download_complete_callback", status: response.code.to_i, success: success)
+      success
+    rescue StandardError => e
+      WebServices.backend_error("api_download_complete_callback_failed", message: e.message)
+      false
     end
   end
 end

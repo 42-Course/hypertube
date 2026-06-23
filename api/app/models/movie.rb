@@ -118,10 +118,18 @@ class Movie < ApplicationRecord
     genres.to_s.split(",").map(&:strip).reject(&:empty?)
   end
 
-  # English subtitles plus the language of any other downloaded track. The real
-  # files are produced by the video pipeline; here we expose what is available.
+  # Subtitle languages available from OpenSubtitles (cached on the row by the
+  # movies controller). The streaming pipeline additionally exposes embedded and
+  # in-torrent subtitle tracks at playback time; these are the external ones the
+  # browser can overlay as a <track>.
   def available_subtitles
     Array(subtitle_languages)
+  end
+
+  # Whether a fully-downloaded copy is recorded on the server (the streaming
+  # service notifies the API when a media finishes, setting file_path).
+  def downloaded?
+    file_path.present?
   end
 
   # Cast/crew resolved from the metadata APIs (see MovieSources). `credits` is a
@@ -150,6 +158,7 @@ class Movie < ApplicationRecord
       rating:    rating,
       cover_url: cover_url,
       genres:    genres_list,
+      downloaded: downloaded?,
       watched:   user && watched_by?(user)
     }.compact
   end
@@ -178,11 +187,5 @@ class Movie < ApplicationRecord
     return if Movie.where.not(id: id).exists?(attr => value)
 
     self[attr] = value
-  end
-
-  # Placeholder until the streaming pipeline records real subtitle tracks.
-  # Kept as a method so the API shape is already correct.
-  def subtitle_languages
-    []
   end
 end

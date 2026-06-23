@@ -102,6 +102,7 @@ class WebApp < Sinatra::Base
       %r{\A/media/[^/]+/playback\z},
       %r{\A/media/[^/]+/active-playlist\.json\z},
       %r{\A/media/[^/]+/(?:play|seek)\z},
+      %r{\A/media/[^/]+/(?:pause|resume)\z},
       %r{\A/sessions/[^/]+/(?:stop|status\.json)\z}
     ].freeze
 
@@ -562,7 +563,37 @@ class WebApp < Sinatra::Base
                 maybe_retry_metadata_probe(media)
               end
       schedule_vod_if_needed(media)
+      notify_api_if_downloaded(media)
       media_store.find(media.fetch("media_id"))
+    end
+
+    # One-time machine-to-machine callback telling the Hypertube API a media has
+    # finished downloading. Fires on the next sync after the media reaches a
+    # complete state and is idempotent (api_notified_at guards re-sends).
+    def notify_api_if_downloaded(media)
+      return unless %w[downloaded packaging_vod ready].include?(media.fetch("state"))
+      return if media["api_notified_at"]
+
+      client = WebServices::HypertubeApiClient.new
+      return unless client.configured?
+
+      notified = client.notify_download_complete(
+        token: StreamTicketVerifier.issue_service_token,
+        payload: {
+          media_id: media.fetch("media_id"),
+          info_hash: media["info_hash"],
+          name: media["name"],
+          file_path: media["hls_vod_path"],
+          duration_seconds: media["duration_seconds"]
+        }
+      )
+      return unless notified
+
+      media_store.update(media.fetch("media_id")) do |current|
+        current.merge("api_notified_at" => Time.now.utc.iso8601)
+      end
+    rescue StandardError => e
+      backend_error("notify_api_if_downloaded_failed", media_id: media.fetch("media_id"), message: e.message)
     end
 
     def safe_sync_media(media_id)
@@ -653,6 +684,13 @@ class WebApp < Sinatra::Base
     rescue WebServices::RemoteServiceError => e
       backend_error("schedule_vod_remote_failed", media_id: media.fetch("media_id"), status: e.status, code: e.code,
                                                  message: e.message)
+      nil
+    end
+
+    def resume_torrent_quietly(media_id)
+      range_server_client.resume_torrent(media_id: media_id)
+    rescue WebServices::RemoteServiceError => e
+      backend_error("resume_torrent_failed", media_id: media_id, status: e.status, code: e.code, message: e.message)
       nil
     end
 
@@ -823,6 +861,9 @@ class WebApp < Sinatra::Base
 
   post "/media/:media_id/play" do
     media = safe_sync_media(params.fetch("media_id"))
+    # Resuming on play makes "download only while watching" reversible: a media
+    # paused when the last viewer left continues downloading when playback starts.
+    resume_torrent_quietly(media.fetch("media_id"))
     payload = build_play_payload(request_data, media)
     backend_log("play_request", media_id: media.fetch("media_id"), payload: payload)
     if media["selected_file_index"] != payload.fetch(:file_index)
@@ -870,6 +911,30 @@ class WebApp < Sinatra::Base
     json_response(present_session(session, media_id: media.fetch("media_id")), status_code: 202)
   rescue KeyError => e
     domain_error!(TorrentStreaming::ValidationError.new("missing #{e.key}", code: "missing_field"))
+  rescue WebServices::RemoteServiceError => e
+    remote_error!(e)
+  rescue TorrentStreaming::DomainError => e
+    domain_error!(e)
+  end
+
+  # Pause downloading for a media (called when the last viewer leaves a not-yet-
+  # downloaded movie, so the torrent only progresses while someone is watching).
+  post "/media/:media_id/pause" do
+    media = load_media_or_raise!(params.fetch("media_id"))
+    result = range_server_client.pause_torrent(media_id: media.fetch("media_id"))
+    backend_log("pause_torrent", media_id: media.fetch("media_id"))
+    json_response(result)
+  rescue WebServices::RemoteServiceError => e
+    remote_error!(e)
+  rescue TorrentStreaming::DomainError => e
+    domain_error!(e)
+  end
+
+  post "/media/:media_id/resume" do
+    media = load_media_or_raise!(params.fetch("media_id"))
+    result = range_server_client.resume_torrent(media_id: media.fetch("media_id"))
+    backend_log("resume_torrent", media_id: media.fetch("media_id"))
+    json_response(result)
   rescue WebServices::RemoteServiceError => e
     remote_error!(e)
   rescue TorrentStreaming::DomainError => e

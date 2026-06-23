@@ -11,6 +11,7 @@ function normalizeMovie(movie) {
     genre: movie.genres?.[0] || null,
     genres: movie.genres || [],
     watched: Boolean(movie.watched),
+    downloaded: Boolean(movie.downloaded),
   }
 }
 
@@ -155,6 +156,13 @@ export async function markMovieUnwatched(movieId) {
   return normalizeMovieDetail(data)
 }
 
+// Persist the movie's runtime once it is discovered from the torrent/transcoder
+// (metadata sources usually leave duration empty). Idempotent on the API side.
+export async function updateMovieDuration(movieId, seconds) {
+  const { data } = await client.patch(`/api/v1/movies/${movieId}/duration`, { seconds })
+  return normalizeMovieDetail(data)
+}
+
 export async function getMovieComments({ movieId, page, perPage }) {
   const params = { page, per_page: perPage }
   const { data } = await client.get('/api/v1/movies/' + movieId + '/comments', { params })
@@ -186,4 +194,20 @@ export async function updateComment(commentId, content) {
 
 export async function deleteComment(commentId) {
   await client.delete(`/api/v1/comments/${commentId}`)
+}
+
+// Available OpenSubtitles languages for a movie (by imdb id, on the API side).
+export async function getMovieSubtitleLanguages(movieId) {
+  const { data } = await client.get(`/api/v1/movies/${movieId}/subtitles`)
+  return data.languages || []
+}
+
+// Fetch a converted WebVTT subtitle (auth-bound) and return an object URL the
+// <track> element can load. Caller is responsible for revoking the URL.
+export async function fetchSubtitleVttUrl(movieId, language) {
+  const { data } = await client.get(
+    `/api/v1/movies/${movieId}/subtitles/${encodeURIComponent(language)}`,
+    { responseType: 'blob' },
+  )
+  return URL.createObjectURL(data)
 }

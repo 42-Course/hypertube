@@ -35,6 +35,13 @@ Rails.application.routes.draw do
         member do
           post   "watched", action: :mark_watched
           delete "watched", action: :mark_unwatched, as: nil
+
+          # OpenSubtitles: list available languages, and serve one as WebVTT.
+          get "subtitles", action: :subtitles
+          get "subtitles/:language", action: :subtitle, constraints: { language: /[A-Za-z-]+/ }
+
+          # Persist the runtime discovered from the torrent (sources rarely have it).
+          patch "duration", action: :update_duration
         end
 
         # Subject: comments are reachable via /movies/:id/comments (list + create).
@@ -43,6 +50,12 @@ Rails.application.routes.draw do
 
       # Subject: "POST /comments OR POST /movies/:movie_id/comments"
       resources :comments, only: %i[index show create update destroy]
+
+      # Machine-to-machine callbacks from the torrent streaming service
+      # (authenticated by a service-scope stream token, not a user session).
+      namespace :streaming do
+        post "callbacks/download_complete", to: "callbacks#download_complete"
+      end
     end
   end
 end
