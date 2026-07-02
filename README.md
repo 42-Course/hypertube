@@ -154,8 +154,6 @@ hypertube/
 │   └── src/
 │       ├── api/                # Axios client
 │       └── components/
-├── docs/
-│   └── db_schema.png           # ← add generated schema image here
 ├── docker-compose.yml
 └── Makefile
 ```
